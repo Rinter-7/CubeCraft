@@ -17,16 +17,16 @@ class CUBECRAFT_API AWorldGenerator : public AActor
 
 		TArray<AActor*> cubes;
 
-	//Variable that holds mesh for the world piece
-	class UStaticMesh * cubeMesh;
-
+	//Variable that holds instances of world pieces
+	class UHierarchicalInstancedStaticMeshComponent* meshInstances;
+	
 	// Function that generates 2D perlin noise from 2D seedArr and stores it in outputArr
-	void PerlinNoise2D(float * seedArr, float * outputArr);
+	float ModifiedPerlin(float x, float y);
 
 	void InitializeSeedArray(int size, float * seedArr);
 public:	
 	// Sets default values for this actor's properties
-	AWorldGenerator();
+	AWorldGenerator(const FObjectInitializer& ObjectInitializer);
 
 	// Generates the world
 	void GenerateWorld();
@@ -40,7 +40,11 @@ protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 	UPROPERTY(EditAnywhere)
+		class UStaticMesh * cubeMesh;
+
+	UPROPERTY(EditAnywhere)
 	bool isGenerated = false;
+
 	// Properties that define starting size of the world map
 	UPROPERTY(EditAnywhere)
 		int32 worldWidth = 32;
@@ -49,9 +53,17 @@ protected:
 	UPROPERTY(EditAnywhere)
 		int32 worldLength = 32;
 
+	//  Size of one cube
+	UPROPERTY(EditAnywhere)
+		float pieceSize = 100;
+
 	// bias for perlin noise
 	UPROPERTY(EditAnywhere)
-		float bias = 2;
+		float persistance = 2;
+
+	// Height multiplier for perlin noise
+	UPROPERTY(EditAnywhere)
+		float heightAmplitude = 800;
 
 	// Number of octaves for perlin noise
 	UPROPERTY(EditAnywhere)

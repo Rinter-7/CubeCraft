@@ -7,42 +7,31 @@
 #include "Engine/StaticMeshActor.h"
 #include "Engine/StaticMesh.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
 
 
 
 
-void AWorldGenerator::PerlinNoise2D(float * seedArr,float * outputArr)
+float AWorldGenerator::ModifiedPerlin(float x, float y)
 {
-	for (int x = 0; x < worldWidth; ++x)
-		for(int y = 0; y < worldLength; ++y)
-		{
-			float noise = 0.f;
-			float scale = 1.f;
+	// Normalize input to be in range 0 - 1
+	x /= 100000;
+	y /= 100000;
 
-			// Accumulation of scale
-			float scaleAcc = 0.f;
+	float total = 0;
+	float frequency = 1;
+	float amplitude = 1;
+	float maxValue = 0;  // Used for normalizing result to 0.0 - 1.0
+	for (int i = 0; i < octaves; i++) {
+		total += FMath::PerlinNoise2D(FVector2D(x * frequency, y * frequency)) * amplitude;
 
-			for (int o = 0; o < octaves; ++o) {
-				int pitch = worldWidth >> o;
-				int sampleX1 = (x / pitch) * pitch;
-				int sampleX2 = (sampleX1 + pitch) % worldWidth;
+		maxValue += amplitude;
 
-				int sampleY1 = (y / pitch) * pitch;
-				int sampleY2 = (sampleY1 + pitch) % worldWidth;
+		amplitude *= persistance;
+		frequency *= 2;
+	}
 
-				float blendX = (float)(x - sampleX1) / (float)pitch;
-				float blendY = (float)(x - sampleY1) / (float)pitch;
-
-				float sampleA = (1.f - blendX) * seedArr[sampleY1 * worldWidth + sampleX1] + blendX * seedArr[sampleY1 * worldWidth + sampleX2];
-				float sampleB = (1.f - blendX) * seedArr[sampleY2 * worldWidth + sampleX1] + blendX * seedArr[sampleY2 * worldWidth + sampleX2];
-
-				noise += (blendY * (sampleB - sampleA) + sampleA) * scale;
-				scaleAcc += scale;
-				scale /= bias;
-			}
-
-			outputArr[y * worldWidth + x] = noise / scaleAcc;
-		}
+	return total / maxValue;
 }
 
 void AWorldGenerator::InitializeSeedArray(int size, float * seedArr)
@@ -54,10 +43,16 @@ void AWorldGenerator::InitializeSeedArray(int size, float * seedArr)
 }
 
 // Sets default values
-AWorldGenerator::AWorldGenerator()
+AWorldGenerator::AWorldGenerator(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	auto mesh = ConstructorHelpers::FObjectFinder<UStaticMesh>(TEXT("StaticMesh'/Game/Geometry/Meshes/Cube.Cube'"));
-	cubeMesh = mesh.Object;
+	cubeMesh = ConstructorHelpers::FObjectFinder<UStaticMesh>(TEXT("StaticMesh'/Game/Geometry/Meshes/Cube.Cube'")).Object;
+
+	meshInstances = ObjectInitializer.CreateDefaultSubobject<UHierarchicalInstancedStaticMeshComponent>(this, TEXT("meshInstances"));
+
+	//meshInstances->SetFlags(RF_Transactional);
+	meshInstances->AttachTo(RootComponent);
+
+	meshInstances->SetStaticMesh(cubeMesh);
 
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
@@ -68,37 +63,46 @@ void AWorldGenerator::GenerateWorld()
 {
 	if (!bUseCustomSeed)
 		seed = FDateTime::Now().ToUnixTimestamp();
-	float* seedArray = new float[worldWidth * worldLength];
 
-	InitializeSeedArray(worldWidth * worldLength, seedArray);
 
-	float* perlinOutput = new float[worldWidth * worldLength];
 
-	PerlinNoise2D(seedArray, perlinOutput);
+	
 
 	for (int x = 0; x < worldWidth; ++x) {
 		for (int y = 0; y < worldLength; ++y) {
 
-			float height = perlinOutput[y * worldWidth + x];
-			
+			float height = ModifiedPerlin(x,y) * heightAmplitude;
+			height = FMath::RoundToFloat(height / pieceSize) * pieceSize;
 
-			AStaticMeshActor* instance = GetWorld()->SpawnActor<AStaticMeshActor>(FVector(x * 100, y * 100, height * 800), FRotator::ZeroRotator);
-			instance->GetStaticMeshComponent()->SetStaticMesh(cubeMesh);
-			cubes.Add(instance);
+			FTransform transform;
+			transform.SetLocation(FVector(x * pieceSize - worldWidth/2, y * pieceSize - worldLength/2, height));
+			transform.SetScale3D(FVector(pieceSize/100));
+			meshInstances->AddInstance(transform);
+
+			transform.SetLocation(FVector(x * pieceSize - worldWidth / 2, y * pieceSize - worldLength / 2, height - pieceSize ));
+			meshInstances->AddInstance(transform);
+
+
+			//AStaticMeshActor* instance = GetWorld()->SpawnActor<AStaticMeshActor>(FVector(x * pieceSize, y * pieceSize, height), FRotator::ZeroRotator);
+			//instance->GetStaticMeshComponent()->SetStaticMesh(cubeMesh);
+			//instance->SetActorScale3D(FVector(pieceSize/100));
+			//cubes.Add(instance);
 		}
 	}
 
-	delete(seedArray);
-	delete(perlinOutput);
 }
 
 void AWorldGenerator::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (!isGenerated) {
-		for (auto&& it : cubes) {
+		FMath::RandInit(seed);
+		/*for (auto&& it : cubes) {
 			it->Destroy();
 		}
-		cubes.Empty();
+		cubes.Empty();*/
+		meshInstances->ClearInstances();
+		meshInstances->SetStaticMesh(cubeMesh);
+
 		GenerateWorld();
 		isGenerated = true;
 	}
@@ -106,6 +110,7 @@ void AWorldGenerator::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 
 void AWorldGenerator::OnConstruction(const FTransform& Transform)
 {
+	//meshInstances->RegisterComponent();
 
 }
 
