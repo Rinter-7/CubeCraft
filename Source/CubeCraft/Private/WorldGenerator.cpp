@@ -15,8 +15,8 @@
 float AWorldGenerator::ModifiedPerlin(float x, float y)
 {
 	// Normalize input to be in range 0 - 1
-	x /= 100000;
-	y /= 100000;
+	x /= -1048576;
+	y /= -1048576;
 
 	float total = 0;
 	float frequency = 1;
@@ -54,6 +54,12 @@ AWorldGenerator::AWorldGenerator(const FObjectInitializer& ObjectInitializer) : 
 
 	meshInstances->SetStaticMesh(cubeMesh);
 
+	meshInstances->SetCollisionProfileName(TEXT("Pawn"));
+
+	meshInstances->OnComponentHit.AddDynamic(this, &AWorldGenerator::OnCompHit);
+
+
+
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
@@ -79,14 +85,16 @@ void AWorldGenerator::GenerateWorld()
 			transform.SetScale3D(FVector(pieceSize/100));
 			meshInstances->AddInstance(transform);
 
-			transform.SetLocation(FVector(x * pieceSize - worldWidth / 2, y * pieceSize - worldLength / 2, height - pieceSize ));
-			meshInstances->AddInstance(transform);
 
+			for (int i = 1; i < 20; ++i) {
+				transform.SetLocation(FVector(x * pieceSize - worldWidth / 2, y * pieceSize - worldLength / 2, height - pieceSize*i));
+				meshInstances->AddInstance(transform);
+			}
 
-			//AStaticMeshActor* instance = GetWorld()->SpawnActor<AStaticMeshActor>(FVector(x * pieceSize, y * pieceSize, height), FRotator::ZeroRotator);
-			//instance->GetStaticMeshComponent()->SetStaticMesh(cubeMesh);
-			//instance->SetActorScale3D(FVector(pieceSize/100));
-			//cubes.Add(instance);
+			/*AStaticMeshActor* instance = GetWorld()->SpawnActor<AStaticMeshActor>(FVector(x * pieceSize, y * pieceSize, height), FRotator::ZeroRotator);
+			instance->GetStaticMeshComponent()->SetStaticMesh(cubeMesh);
+			instance->SetActorScale3D(FVector(pieceSize/100));
+			cubes.Add(instance);*/
 		}
 	}
 
@@ -96,10 +104,10 @@ void AWorldGenerator::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 {
 	if (!isGenerated) {
 		FMath::RandInit(seed);
-		/*for (auto&& it : cubes) {
+		for (auto&& it : cubes) {
 			it->Destroy();
 		}
-		cubes.Empty();*/
+		cubes.Empty();
 		meshInstances->ClearInstances();
 		meshInstances->SetStaticMesh(cubeMesh);
 
@@ -126,5 +134,10 @@ void AWorldGenerator::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+}
+
+void AWorldGenerator::OnCompHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	meshInstances->RemoveInstance(Hit.Item);
 }
 
