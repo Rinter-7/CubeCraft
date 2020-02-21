@@ -11,6 +11,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "MotionControllerComponent.h"
 #include "XRMotionControllerBase.h" // for FXRMotionControllerBase::RightHandSourceId
+#include "DrawDebugHelpers.h"
+#include "Engine/World.h"
+#include "CubeCraft/Public/WorldManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 
@@ -25,6 +28,9 @@ ACubeCraftCharacter::ACubeCraftCharacter()
 	// set our turn rates for input
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
+
+	// Set our beam length
+	BeamLength = 2000;
 
 	// Create a CameraComponent	
 	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
@@ -136,6 +142,9 @@ void ACubeCraftCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 	PlayerInputComponent->BindAxis("TurnRate", this, &ACubeCraftCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &ACubeCraftCharacter::LookUpAtRate);
+
+	// Custom input axis event, beam
+	PlayerInputComponent->BindAxis("Beam", this, &ACubeCraftCharacter::OnBeam);
 }
 
 void ACubeCraftCharacter::OnFire()
@@ -182,6 +191,40 @@ void ACubeCraftCharacter::OnFire()
 		if (AnimInstance != NULL)
 		{
 			AnimInstance->Montage_Play(FireAnimation, 1.f);
+		}
+	}
+}
+
+void ACubeCraftCharacter::OnBeam(float Value)
+{
+	if (timeSinceLastShot >= reloadTime) {
+		bReadyToBeam = true;
+	}
+	else {
+		timeSinceLastShot += GetWorld()->GetDeltaSeconds();
+	}
+	if (Value > 0.1 && bReadyToBeam) {
+		UWorld* world = GetWorld();
+		FVector start = FirstPersonCameraComponent->GetComponentLocation();
+		FVector end = start + FirstPersonCameraComponent->GetForwardVector() * BeamLength;
+		FHitResult hit;
+		
+		if (world->LineTraceSingleByObjectType(hit, start, end, FCollisionObjectQueryParams::AllStaticObjects)) {
+			DrawDebugLine(world, FP_MuzzleLocation->GetComponentLocation(), hit.Location, FColor::Green);
+
+			// if its too close dont do anything
+			if (hit.Distance < 200)
+				return;
+
+			timeSinceLastShot = 0;
+			bReadyToBeam = false;
+
+			FVector location = hit.Location + hit.Normal;
+			worldManager->AddCube(location);
+		}
+		else {
+			DrawDebugLine(world, FP_MuzzleLocation->GetComponentLocation(), end, FColor::Red);
+
 		}
 	}
 }

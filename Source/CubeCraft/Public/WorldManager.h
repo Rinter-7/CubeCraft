@@ -15,12 +15,43 @@ class CUBECRAFT_API AWorldManager : public AActor
 {
 	GENERATED_BODY()
 
-		//Quad tree for efficient manipulation with world chunks
-		//TQuadTree<AWorldChunk*> quadTree;
+
+
+	int centerX;
+	int centerY;
 	
+	float time = 0;
+
+	void AddChunk(int x, int y);
+
+	void RemoveChunk(int x, int y);
+
+	FBox2D BoxAroundPoint(int x, int y, float size);
+
+	class APlayerController * playerController = nullptr;
+
+	FTimerHandle checkPlayerPositionTimerHandle;
+
+	// chunk length in ue units, used by CheckplayerPosition function, chunksize * cubesize/2
+	float chunkLength;
+
 public:	
+	//Quad tree for efficient manipulation with world chunks
+	TSharedPtr<TQuadTree<AWorldChunk*>> quadTree;
+
+	float ModifiedPerlin(float x, float y) const;
+
 	// Sets default values for this actor's properties
 	AWorldManager();
+
+	//Updates the world around new point x,y 
+	void RecenterWorld(int newCenterX, int newCenterY);
+
+	//Check player position repeatedly and recenter world if needed
+	void CheckPlayerPosition();
+
+	// Adds a cube into the world, to the apropriete chunk
+	void AddCube(FVector & position, const FString & type = "Basic" );
 
 	// Size of one cube in the world
 	UPROPERTY(EditAnywhere)
@@ -50,9 +81,5 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 };

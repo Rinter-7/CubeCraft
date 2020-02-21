@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "GenericQuadTree.h"
 #include "WorldChunk.generated.h"
 
 
@@ -20,26 +21,23 @@ class CUBECRAFT_API AWorldChunk : public AActor
 	// Hisms are usefull for rendering many instances of the same static mesh
 	TMap<FString,class UHierarchicalInstancedStaticMeshComponent* > meshHISMs;
 
+	TSharedPtr<TQuadTree<AWorldChunk*>> owningTree;
+
 	void PrepareHISMs();
 
-	float ModifiedPerlin(float x, float y);
+	bool bIsActive;
+
+	float destroyTime = 10;
+
+	FTimerHandle saveAndDestroyTimerHandle;
+
 	
 public:	
 
 	class USceneComponent* root;
+
 	// Sets default values for this actor's properties
 	AWorldChunk();
-
-
-
-	// bias for perlin noise
-	float persistance = 2;
-
-	// Height multiplier for perlin noise
-	float heightAmplitude = 800;
-
-	// Number of octaves for perlin noise
-	int octaves = 2;
 
 	// Loads chunk from memory if any, returns false if it doesnt exist in memory
 	// Avoid calling this function multiple times before unload is called, it would only load duplicates of this chunk
@@ -49,7 +47,10 @@ public:
 	void SaveChunk();
 
 	// Destroys this chunk
-	void DestroyChunk();
+	void DisableChunk();
+
+	// Activates chunk
+	void ActivateChunk();
 
 	// Saves this chunk into memory and destroys it
 	void SaveAndDestroy();
@@ -58,18 +59,17 @@ public:
 	int x;
 	int y;
 
-	// Size of one cube
-	float cubeSize;
-
-	// Size of one chunk
-	int chunkSize;
+	// Manager of this chunk
+	class AWorldManager * manager;
 
 	// Function that adds new mesh instance to the chunk, this function doesnt check if the mesh is withing chunk bounderies, 
 	// check bounderies beforehand. 
 	void AddMeshInstanceToChunk(UStaticMesh & staticMesh, FTransform & transform);
 
+	void AddCube(FVector& position, const FString& type = "Basic");
+
 	// Builds chunk dependent on given coordinates and cubeSize
-	void BuildChunk(int x, int y, float cubeSize, int chunkSize);
+	void BuildChunk(int x, int y, class  AWorldManager & worldManager);
 
 	UPROPERTY(EditAnywhere)
 		class UStaticMesh* cubeMesh;

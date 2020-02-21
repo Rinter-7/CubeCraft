@@ -45,6 +45,7 @@ class ACubeCraftCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UMotionControllerComponent* L_MotionController;
 
+
 public:
 	ACubeCraftCharacter();
 
@@ -52,6 +53,20 @@ protected:
 	virtual void BeginPlay();
 
 public:
+	class AWorldManager* worldManager;
+
+
+	float reloadTime = 0.1;
+
+	float timeSinceLastShot = 0;
+
+	bool bReadyToBeam = true;
+
+	/** Length of the beam */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Beam)
+		float BeamLength;
+
+
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 	float BaseTurnRate;
@@ -84,6 +99,9 @@ protected:
 	
 	/** Fires a projectile. */
 	void OnFire();
+
+	/** Creates a beam **/
+	void OnBeam(float Value);
 
 	/** Resets HMD orientation and position in VR. */
 	void OnResetVR();
