@@ -13,7 +13,9 @@
 #include "XRMotionControllerBase.h" // for FXRMotionControllerBase::RightHandSourceId
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
+#include "CubeType.h"
 #include "CubeCraft/Public/WorldManager.h"
+#include "CubeHISM.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 
@@ -54,6 +56,7 @@ ACubeCraftCharacter::ACubeCraftCharacter()
 	FP_Gun->CastShadow = false;
 	// FP_Gun->SetupAttachment(Mesh1P, TEXT("GripPoint"));
 	FP_Gun->SetupAttachment(RootComponent);
+	FP_Gun->SetCollisionObjectType(ECollisionChannel::ECC_EngineTraceChannel2);
 
 	FP_MuzzleLocation = CreateDefaultSubobject<USceneComponent>(TEXT("MuzzleLocation"));
 	FP_MuzzleLocation->SetupAttachment(FP_Gun);
@@ -94,6 +97,9 @@ void ACubeCraftCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
+
+	world = GetWorld();
+
 
 	//Attach gun mesh component to Skeleton, doing it here because the skeleton is not yet created in the constructor
 	FP_Gun->AttachToComponent(Mesh1P, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true), TEXT("GripPoint"));
@@ -142,9 +148,11 @@ void ACubeCraftCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 	PlayerInputComponent->BindAxis("TurnRate", this, &ACubeCraftCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &ACubeCraftCharacter::LookUpAtRate);
-
 	// Custom input axis event, beam
+	beamFunction = &ACubeCraftCharacter::OnBeamDestroy;
 	PlayerInputComponent->BindAxis("Beam", this, &ACubeCraftCharacter::OnBeam);
+	PlayerInputComponent->BindAction("ChangeWeaponMode", IE_Pressed, this, &ACubeCraftCharacter::OnWeaponModeChange);
+
 }
 
 void ACubeCraftCharacter::OnFire()
@@ -197,35 +205,94 @@ void ACubeCraftCharacter::OnFire()
 
 void ACubeCraftCharacter::OnBeam(float Value)
 {
+	((*this).*(beamFunction))(Value);
+}
+
+void ACubeCraftCharacter::OnBeamSpawn(float Value)
+{
+	timeSinceLastShot += world->GetDeltaSeconds();
+
 	if (timeSinceLastShot >= reloadTime) {
 		bReadyToBeam = true;
 	}
-	else {
-		timeSinceLastShot += GetWorld()->GetDeltaSeconds();
-	}
 	if (Value > 0.1 && bReadyToBeam) {
-		UWorld* world = GetWorld();
 		FVector start = FirstPersonCameraComponent->GetComponentLocation();
 		FVector end = start + FirstPersonCameraComponent->GetForwardVector() * BeamLength;
 		FHitResult hit;
-		
-		if (world->LineTraceSingleByObjectType(hit, start, end, FCollisionObjectQueryParams::AllStaticObjects)) {
-			DrawDebugLine(world, FP_MuzzleLocation->GetComponentLocation(), hit.Location, FColor::Green);
 
-			// if its too close dont do anything
-			if (hit.Distance < 200)
+		if (world->LineTraceSingleByObjectType(hit, start, end, FCollisionObjectQueryParams::AllStaticObjects)) {
+			if (hit.Distance < 200) // If we are too close dont add cube
 				return;
+
+			DrawDebugLine(world, FP_MuzzleLocation->GetComponentLocation(), hit.Location, FColor::Green);
+			FVector location = hit.Location + hit.Normal;
+
+			worldManager->AddCube(location, worldManager->types[0]);
 
 			timeSinceLastShot = 0;
 			bReadyToBeam = false;
-
-			FVector location = hit.Location + hit.Normal;
-			worldManager->AddCube(location);
 		}
 		else {
-			DrawDebugLine(world, FP_MuzzleLocation->GetComponentLocation(), end, FColor::Red);
-
+			DrawDebugLine(world, FP_MuzzleLocation->GetComponentLocation(), end, FColor::Blue);
 		}
+	}
+}
+
+void ACubeCraftCharacter::OnBeamDestroy(float Value)
+{
+	if (Value > 0.1) {
+		FVector start = FirstPersonCameraComponent->GetComponentLocation();
+		FVector end = start + FirstPersonCameraComponent->GetForwardVector() * BeamLength;
+		FHitResult hit;
+		if (world->LineTraceSingleByObjectType(hit, start, end, FCollisionObjectQueryParams::AllStaticObjects)) {
+			DrawDebugLine(world, FP_MuzzleLocation->GetComponentLocation(), hit.Location, FColor::Red);
+
+			if (hit.GetComponent() == NULL)
+				return;
+			
+			if (damagedComponent == hit.GetComponent() && damagedCube == hit.Item) {
+				damagedComponent->DestroyCube(damage * world->GetDeltaSeconds(), damagedCube);
+			}
+			else {
+				if (damagedComponent != NULL) 
+					damagedComponent->HealCube(damagedCube);
+				
+				damagedComponent = dynamic_cast<UCubeHISM*>(hit.GetComponent());
+				if (damagedComponent == NULL)
+					return;
+
+				damagedCube = hit.Item;
+				damagedComponent->DestroyCube(damage * world->GetDeltaSeconds(), damagedCube);
+			}
+		}
+		else{
+			DrawDebugLine(world, FP_MuzzleLocation->GetComponentLocation(), end, FColor::Blue);
+			if (damagedComponent != NULL) {
+				damagedComponent->HealCube(damagedCube);
+				damagedComponent = NULL;
+			}
+		}
+	}
+	else if(damagedComponent != NULL) {
+		damagedComponent->HealCube(damagedCube);
+		damagedComponent = NULL;
+	}
+}
+
+
+void ACubeCraftCharacter::OnWeaponModeChange()
+{
+	bDestructionMode ^= true;
+
+	if (bDestructionMode) {
+		beamFunction = &ACubeCraftCharacter::OnBeamDestroy;
+	}
+	else {
+		if (damagedComponent != NULL) {
+			damagedComponent->HealCube(damagedCube);
+			damagedComponent = NULL;
+		}
+		beamFunction = &ACubeCraftCharacter::OnBeamSpawn;
 	}
 }
 

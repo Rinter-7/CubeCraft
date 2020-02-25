@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "GenericQuadTree.h"
 #include "WorldChunk.h"
+#include "CubeType.h"
 #include "WorldManager.generated.h"
 
 
@@ -32,14 +33,12 @@ class CUBECRAFT_API AWorldManager : public AActor
 
 	FTimerHandle checkPlayerPositionTimerHandle;
 
-	// chunk length in ue units, used by CheckplayerPosition function, chunksize * cubesize/2
+	// chunk length in ue units, used by CheckplayerPosition function, chunksize * cubesize
 	float chunkLength;
 
 public:	
 	//Quad tree for efficient manipulation with world chunks
 	TSharedPtr<TQuadTree<AWorldChunk*>> quadTree;
-
-	float ModifiedPerlin(float x, float y) const;
 
 	// Sets default values for this actor's properties
 	AWorldManager();
@@ -51,7 +50,10 @@ public:
 	void CheckPlayerPosition();
 
 	// Adds a cube into the world, to the apropriete chunk
-	void AddCube(FVector & position, const FString & type = "Basic" );
+	void AddCube(FVector & position, FCubeType& type);
+
+	UPROPERTY(EditAnywhere)
+	TArray<FCubeType> types;
 
 	// Size of one cube in the world
 	UPROPERTY(EditAnywhere)
@@ -65,18 +67,33 @@ public:
 	UPROPERTY(EditAnywhere)
 	int nVisibleChunks = 5;
 
-
-	// bias for perlin noise
+	// Seed for the perlin noise
 	UPROPERTY(EditAnywhere)
+		int32 seed;
+
+	// Persistance of the perlin noise
+	UPROPERTY(EditAnywhere, Category = Perlin2D)
 		float persistance = 2;
 
 	// Height multiplier for perlin noise
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = Perlin2D)
 		float heightAmplitude = 800;
 
 	// Number of octaves for perlin noise
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = Perlin2D)
 		int octaves = 2;
+
+	// Persistance of the 3D perlin noise
+	UPROPERTY(EditAnywhere, Category = Perlin3D)
+		float persistance3D = 2;
+
+	// Number of octaves for 2D perlin noise
+	UPROPERTY(EditAnywhere, Category = Perlin3D)
+		int octaves3D = 2;
+
+	// value used to normilize height between -1 and 1
+	UPROPERTY(EditAnywhere, Category = Perlin3D)
+		int zDivisor = 800;
 
 protected:
 	// Called when the game starts or when spawned

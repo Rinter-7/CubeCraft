@@ -10,21 +10,28 @@
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "CubeHISM.h"
+#include "CubeCraft/Public/MyPerlin.h"
 
 
 
 
 void AWorldChunk::PrepareHISMs()
 {
-	UHierarchicalInstancedStaticMeshComponent* meshInstances = NewObject< UHierarchicalInstancedStaticMeshComponent>(this);
-	meshInstances->RegisterComponent();
+	for (auto&& it : manager->types) {
+		UCubeHISM* meshInstances = NewObject< UCubeHISM>(this);
+		PrepareHISM(meshInstances);
+		meshHISMs.Add(it.name, meshInstances);
+		meshInstances->SetStaticMesh(it.cubeMesh);
+	}
+}
 
-	meshInstances->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
-	meshInstances->SetStaticMesh(cubeMesh);
-	meshHISMs.Add("Basic", meshInstances);
-	meshInstances->SetCollisionProfileName(TEXT("Pawn"));
-	meshInstances->OnComponentHit.AddDynamic(this, &AWorldChunk::OnCompHit);
-	meshInstances->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
+void AWorldChunk::PrepareHISM(UCubeHISM* hism)
+{
+	hism->RegisterComponent();
+	hism->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+	hism->SetCollisionProfileName(TEXT("Pawn"));
+	hism->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
 }
 
 
@@ -33,9 +40,7 @@ AWorldChunk::AWorldChunk()
 	root = CreateDefaultSubobject<USceneComponent>(TEXT("root"));
 	RootComponent = root;
 
-	cubeMesh = ConstructorHelpers::FObjectFinder<UStaticMesh>(TEXT("StaticMesh'/Game/Geometry/Meshes/Cube.Cube'")).Object;
 	PrimaryActorTick.bCanEverTick = false;
-
 }
 
 
@@ -70,6 +75,7 @@ void AWorldChunk::SaveAndDestroy()
 	saveAndDestroyTimerHandle.Invalidate();
 	if (bIsActive)
 		return;
+
 	//FBox2D(FVector2D(x - halfsize, y - halfsize), FVector2D(x + halfsize, y + halfsize));
 	owningTree->Remove(this, FBox2D(FVector2D(x - 0.1, y - 0.1), FVector2D(x + 0.1, y + 0.1)));
 	this->Destroy();
@@ -79,10 +85,10 @@ void AWorldChunk::AddMeshInstanceToChunk(UStaticMesh& staticMesh, FTransform& tr
 {
 }
 
-void AWorldChunk::AddCube(FVector& position, const FString& type)
+void AWorldChunk::AddCube(FVector& position, FCubeType& type)
 {
 	// Find right hism component for this type
-	UHierarchicalInstancedStaticMeshComponent* meshInstances = *meshHISMs.Find(type);
+	UHierarchicalInstancedStaticMeshComponent* meshInstances = *meshHISMs.Find(type.name);
 
 	// Transform that will be added to the hism
 	FTransform transform;
@@ -111,8 +117,6 @@ void AWorldChunk::AddCube(FVector& position, const FString& type)
 void AWorldChunk::BuildChunk(int x1, int y1, AWorldManager & worldManager)
 {
 
-	PrepareHISMs();
-
 	owningTree = worldManager.quadTree;
 
 	manager = &worldManager;
@@ -121,16 +125,21 @@ void AWorldChunk::BuildChunk(int x1, int y1, AWorldManager & worldManager)
 	this->y = y1;
 	float cubeSize = worldManager.cubeSize;
 	int chunkSize = worldManager.chunkSize;
+
 	SetActorLocation(FVector(x1* cubeSize * chunkSize, y1* cubeSize * chunkSize, 0));
 
-	UHierarchicalInstancedStaticMeshComponent* meshInstances = *meshHISMs.Find("Basic");
+	PrepareHISMs();
+	UHierarchicalInstancedStaticMeshComponent* dirtInstances = *meshHISMs.Find("dirt");
+	UHierarchicalInstancedStaticMeshComponent* stoneInstances = *meshHISMs.Find("stone");
+	UHierarchicalInstancedStaticMeshComponent* diamondInstances = *meshHISMs.Find("diamond");
+	UHierarchicalInstancedStaticMeshComponent* iceInstances = *meshHISMs.Find("ice");
 
 	FTransform transform;
 	transform.SetScale3D(FVector(cubeSize/100));
 	float halfOffset = (cubeSize * chunkSize) * 0.5;
 	for (int i = 0; i < chunkSize; ++i) {
 		for (int k = 0; k < chunkSize; ++k) {
-			float height = worldManager.ModifiedPerlin
+			float height = MyPerlin::ModifiedPerlin2D
 				(i*cubeSize - halfOffset + GetActorLocation().X,
 					k * cubeSize - halfOffset + GetActorLocation().Y)
 				*(worldManager.heightAmplitude);
@@ -139,7 +148,19 @@ void AWorldChunk::BuildChunk(int x1, int y1, AWorldManager & worldManager)
 
 			transform.SetLocation(FVector(i*cubeSize - halfOffset, k * cubeSize - halfOffset , height));
 
-			meshInstances->AddInstance(transform);
+			float type = MyPerlin::ModifiedPerlin3D(i * cubeSize - halfOffset + GetActorLocation().X,
+												k * cubeSize - halfOffset + GetActorLocation().Y,
+													height);
+			if (type > 0.6)
+				continue;
+			if(type > 0.3)
+				iceInstances->AddInstance(transform);
+			else if(type > 0.1)
+				stoneInstances->AddInstance(transform);
+			else if(type > -0.8)
+				dirtInstances->AddInstance(transform);
+			else 
+				diamondInstances->AddInstance(transform);
 		}
 	}
 }
@@ -150,20 +171,3 @@ void AWorldChunk::BeginPlay()
 	Super::BeginPlay();
 	
 }
-
-// Called every frame
-void AWorldChunk::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-}
-
-void AWorldChunk::OnCompHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
-{
-	if (OtherComp->GetCollisionObjectType() == ECollisionChannel::ECC_GameTraceChannel1) {
-		UHierarchicalInstancedStaticMeshComponent* hitHISM = StaticCast<UHierarchicalInstancedStaticMeshComponent*>(HitComp);
-		hitHISM->RemoveInstance(Hit.Item);
-	}
-
-}
-

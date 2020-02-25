@@ -2,12 +2,13 @@
 
 
 #include "WorldManager.h"
-#include "CubeCraft/Public/WorldChunk.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/Engine.h"
+#include "CubeCraft/Public/WorldChunk.h"
 #include "CubeCraft/CubeCraftCharacter.h"
+#include "CubeCraft/Public/MyPerlin.h"
 
 void AWorldManager::AddChunk(int x, int y)
 {
@@ -45,36 +46,19 @@ FBox2D AWorldManager::BoxAroundPoint(int x, int y, float size)
 }
 
 
-
-float AWorldManager::ModifiedPerlin(float x, float y) const
-{
-	// Normalize input to be in range 0 - 1
-	x /= -1048576;
-	y /= -1048576;
-
-	float total = 0;
-	float frequency = 1;
-	float amplitude = 1;
-	float maxValue = 0;  // Used for normalizing result to 0.0 - 1.0
-	for (int i = 0; i < octaves; i++) {
-		total += FMath::PerlinNoise2D(FVector2D(x * frequency, y * frequency)) * amplitude;
-
-		maxValue += amplitude;
-
-		amplitude *= persistance;
-		frequency *= 2;
-	}
-
-	return total / maxValue;
-}
 // Sets default values
 AWorldManager::AWorldManager()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
+	// Init the random seed
+	seed = FDateTime::UtcNow().ToUnixTimestamp();
+
 	// Init quad tree
 	quadTree = MakeShared< TQuadTree<AWorldChunk*>>(BoxAroundPoint(0, 0, 10000), 0.5f);
+
+	// ConstructorHelpers::FObjectFinder<UStaticMesh>(TEXT("StaticMesh'/Game/Geometry/Meshes/Cube.Cube'")).Object;
 }
 
 void AWorldManager::RecenterWorld(int newCenterX, int newCenterY)
@@ -124,7 +108,7 @@ void AWorldManager::CheckPlayerPosition()
 	}
 }
 
-void AWorldManager::AddCube(FVector& position, const FString& type)
+void AWorldManager::AddCube(FVector& position, FCubeType& type)
 {
 	// Get chunk coordinates
 
@@ -157,6 +141,22 @@ void AWorldManager::BeginPlay()
 
 	// Empty the tree if we are in the editor
 	quadTree->Empty();
+
+	MyPerlin::SetOctaves(octaves);
+
+	MyPerlin::SetPersistance(persistance);
+
+	MyPerlin::SetOctaves3D(octaves3D);
+
+	MyPerlin::SetPersistance3D(persistance3D);
+
+	MyPerlin::SetZDivisor(zDivisor);
+
+	// Reseed random function
+	FMath::RandInit(seed);
+
+	// Reset the perlin noise with the new seed in fmath::rand
+	MyPerlin::PerlinReset();
 
 	// Calculate chunk length
 	chunkLength = chunkSize * cubeSize;

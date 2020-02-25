@@ -50,7 +50,7 @@ AWorldGenerator::AWorldGenerator(const FObjectInitializer& ObjectInitializer) : 
 	meshInstances = ObjectInitializer.CreateDefaultSubobject<UHierarchicalInstancedStaticMeshComponent>(this, TEXT("meshInstances"));
 
 	//meshInstances->SetFlags(RF_Transactional);
-	meshInstances->AttachTo(RootComponent);
+	meshInstances->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
 
 	meshInstances->SetStaticMesh(cubeMesh);
 

@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "GenericQuadTree.h"
+#include "CubeType.h"
 #include "WorldChunk.generated.h"
-
 
 /**
 * The world is divided into chunks to be more easily managable, each chunk takes care of its own piece of land
@@ -16,14 +16,15 @@ class CUBECRAFT_API AWorldChunk : public AActor
 {
 	GENERATED_BODY()
 
-
 	// This map lets us use hism for every new static mesh we add to the chunk
 	// Hisms are usefull for rendering many instances of the same static mesh
-	TMap<FString,class UHierarchicalInstancedStaticMeshComponent* > meshHISMs;
+	TMap<FString,class UCubeHISM* > meshHISMs;
 
 	TSharedPtr<TQuadTree<AWorldChunk*>> owningTree;
 
 	void PrepareHISMs();
+
+	void PrepareHISM(class UCubeHISM* hism);
 
 	bool bIsActive;
 
@@ -66,23 +67,14 @@ public:
 	// check bounderies beforehand. 
 	void AddMeshInstanceToChunk(UStaticMesh & staticMesh, FTransform & transform);
 
-	void AddCube(FVector& position, const FString& type = "Basic");
+	void AddCube(FVector& position, FCubeType & type);
 
 	// Builds chunk dependent on given coordinates and cubeSize
 	void BuildChunk(int x, int y, class  AWorldManager & worldManager);
 
-	UPROPERTY(EditAnywhere)
-		class UStaticMesh* cubeMesh;
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
-	UFUNCTION()
-		void OnCompHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 };

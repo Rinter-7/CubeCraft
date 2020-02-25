@@ -45,6 +45,22 @@ class ACubeCraftCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UMotionControllerComponent* L_MotionController;
 
+	class UWorld* world;
+
+	void (ACubeCraftCharacter::*beamFunction)(float);
+
+	float timeSinceLastShot = 0;
+
+	bool bReadyToBeam = true;
+
+	bool bDestructionMode = true;
+
+	bool isDestroying = false;
+
+	class UCubeHISM * damagedComponent = NULL;
+
+	int32 damagedCube = 0;
+
 
 public:
 	ACubeCraftCharacter();
@@ -55,17 +71,17 @@ protected:
 public:
 	class AWorldManager* worldManager;
 
-
+	/** Length of the beam */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Beam)
 	float reloadTime = 0.1;
 
-	float timeSinceLastShot = 0;
-
-	bool bReadyToBeam = true;
 
 	/** Length of the beam */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Beam)
 		float BeamLength;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Beam)
+		float damage = 3;
 
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
@@ -100,8 +116,17 @@ protected:
 	/** Fires a projectile. */
 	void OnFire();
 
-	/** Creates a beam **/
+	/** Creates a spawning beam **/
 	void OnBeam(float Value);
+
+	/** Creates a spawning beam **/
+	void OnBeamSpawn(float Value);
+
+	/** Creates a spawning beam **/
+	void OnBeamDestroy(float Value);
+
+	/* Creates a destructing beam*/
+	void OnWeaponModeChange();
 
 	/** Resets HMD orientation and position in VR. */
 	void OnResetVR();
