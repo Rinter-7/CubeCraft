@@ -110,7 +110,7 @@ void ACubeCraftCharacter::BeginPlay()
 	worldManager = StaticCast<AWorldManager*>(managers[0]);
 
 	spawnGuideMesh->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
-	spawnGuideMesh->bAbsoluteRotation = true;
+	spawnGuideMesh->SetUsingAbsoluteRotation(true);
 	spawnGuideMesh->SetWorldScale3D(FVector(worldManager->cubeSize/99));
 
 	//Attach gun mesh component to Skeleton, doing it here because the skeleton is not yet created in the constructor

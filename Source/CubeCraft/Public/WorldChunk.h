@@ -21,8 +21,6 @@ class CUBECRAFT_API AWorldChunk : public AActor
 	// Hisms are usefull for rendering many instances of the same static mesh
 	TMap<FString,class UCubeHISM* > meshHISMs;
 
-	TSharedPtr<TArray<FColumnTransform>> columnMatrix = NULL;
-
 	// Prepare default hisms
 	void PrepareHISMs();
 
@@ -56,13 +54,6 @@ public:
 	// Sets default values for this actor's properties
 	AWorldChunk();
 
-	// Loads chunk from memory if any, returns false if it doesnt exist in memory
-	// Avoid calling this function multiple times before unload is called, it would only load duplicates of this chunk
-	bool LoadChunk(int x, int y);
-
-	// Saves this chunk into memory
-	void SaveChunk();
-
 	// Disables this chunk
 	void DisableChunk();
 
@@ -81,17 +72,8 @@ public:
 
 	void AddCube(FVector& position, FCubeType & type);
 
-	void AddCubePrecisePosition(FVector const & position, FCubeType& type);
-
 	// Builds chunk dependent on given coordinates and cubeSize
 	void BuildChunk(int x, int y, class  AWorldManager & worldManager);
 
-	void CubeRemovedAt(FTransform & trans);
-
-	void AddCubeFromColumn(FVector const &location, int xCol, int yCol);
-
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
 
 };

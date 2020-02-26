@@ -16,24 +16,12 @@ class CUBECRAFT_API UCubeHISM : public UInstancedStaticMeshComponent
 
 	TMap<int32, float> damagedCubes;
 
-	class AWorldChunk * owner;
-
 	void RemoveCube(int32 item);
 
 public:
 	float cubeMaxHealth = 5;
 
-	UCubeHISM();
-
 	void DamageCube(float damage, int32 item);
 
 	void HealCube(int32 item);
-
-	UFUNCTION()
-	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
-
-	protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-	
 };

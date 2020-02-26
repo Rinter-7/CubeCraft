@@ -71,6 +71,11 @@ public:
 	UPROPERTY(EditAnywhere)
 		int32 seed;
 
+	// Height of the floor
+	UPROPERTY(EditAnywhere)
+		float floorHeight = -1000;
+
+
 	// Persistance of the perlin noise
 	UPROPERTY(EditAnywhere, Category = Perlin2D)
 		float persistance = 2;

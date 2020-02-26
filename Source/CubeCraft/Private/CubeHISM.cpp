@@ -8,9 +8,6 @@
 
 void UCubeHISM::RemoveCube(int32 item)
 {
-	FTransform t;
-	GetInstanceTransform(item, t);
-	owner->CubeRemovedAt(t);
 	if (damagedCubes.Contains(item)) {
 		damagedCubes.Remove(item);
 	}
@@ -18,10 +15,6 @@ void UCubeHISM::RemoveCube(int32 item)
 	
 }
 
-UCubeHISM::UCubeHISM(): Super()
-{
-	OnComponentHit.AddDynamic(this, &UCubeHISM::OnHit);
-}
 
 void UCubeHISM::DamageCube(float damage, int32 item)
 {
@@ -45,15 +38,4 @@ void UCubeHISM::HealCube(int32 item)
 	if (damagedCubes.Contains(item)) {
 		damagedCubes.Remove(item);
 	}
-}
-
-void UCubeHISM::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
-{
-
-}
-
-void UCubeHISM::BeginPlay()
-{
-	Super::BeginPlay();
-	owner = StaticCast<AWorldChunk*>(GetOwner());
 }
