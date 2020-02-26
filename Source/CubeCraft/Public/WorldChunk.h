@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "GenericQuadTree.h"
 #include "CubeType.h"
+#include "ChunkBuilder.h"
 #include "WorldChunk.generated.h"
 
 /**
@@ -20,8 +21,6 @@ class CUBECRAFT_API AWorldChunk : public AActor
 	// Hisms are usefull for rendering many instances of the same static mesh
 	TMap<FString,class UCubeHISM* > meshHISMs;
 
-	TSharedPtr<TQuadTree<AWorldChunk*>> owningTree;
-
 	void PrepareHISMs();
 
 	void PrepareHISM(class UCubeHISM* hism);
@@ -32,7 +31,15 @@ class CUBECRAFT_API AWorldChunk : public AActor
 
 	FTimerHandle saveAndDestroyTimerHandle;
 
-	
+	TUniquePtr<FChunkBuilder> chunkBuilder = NULL;
+
+	FRunnableThread* thread = NULL;
+
+	FTimerHandle checkChunkBuilderTimer;
+
+	void CheckChunkBuilder();
+
+
 public:	
 
 	class USceneComponent* root;
@@ -72,6 +79,7 @@ public:
 	// Builds chunk dependent on given coordinates and cubeSize
 	void BuildChunk(int x, int y, class  AWorldManager & worldManager);
 
+	void CubeRemovedAt(FTransform & trans);
 
 protected:
 	// Called when the game starts or when spawned

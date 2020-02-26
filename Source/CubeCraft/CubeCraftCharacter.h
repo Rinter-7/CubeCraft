@@ -71,17 +71,18 @@ protected:
 public:
 	class AWorldManager* worldManager;
 
-	/** Length of the beam */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Beam)
+	/** Reload time for cube spawning */
+	UPROPERTY(EditAnywhere, Category = Beam)
 	float reloadTime = 0.1;
 
 
 	/** Length of the beam */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Beam)
-		float BeamLength;
+	UPROPERTY(EditAnywhere, Category = Beam)
+	float BeamLength;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Beam)
-		float damage = 3;
+	/** Damage per second for cube destroying **/
+	UPROPERTY(EditAnywhere, Category = Beam)
+	float damage = 5;
 
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)

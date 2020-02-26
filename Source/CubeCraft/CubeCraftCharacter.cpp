@@ -251,7 +251,7 @@ void ACubeCraftCharacter::OnBeamDestroy(float Value)
 				return;
 			
 			if (damagedComponent == hit.GetComponent() && damagedCube == hit.Item) {
-				damagedComponent->DestroyCube(damage * world->GetDeltaSeconds(), damagedCube);
+				damagedComponent->DamageCube(damage * world->GetDeltaSeconds(), damagedCube);
 			}
 			else {
 				if (damagedComponent != NULL) 
@@ -262,7 +262,7 @@ void ACubeCraftCharacter::OnBeamDestroy(float Value)
 					return;
 
 				damagedCube = hit.Item;
-				damagedComponent->DestroyCube(damage * world->GetDeltaSeconds(), damagedCube);
+				damagedComponent->DamageCube(damage * world->GetDeltaSeconds(), damagedCube);
 			}
 		}
 		else{

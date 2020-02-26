@@ -22,5 +22,5 @@ struct CUBECRAFT_API FCubeType
 		class UStaticMesh* cubeMesh;
 
 		UPROPERTY(EditAnywhere)
-		float breakTime;
+		float maxHealth;
 };

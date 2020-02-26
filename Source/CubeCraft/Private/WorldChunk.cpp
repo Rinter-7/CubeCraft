@@ -12,6 +12,8 @@
 #include "Engine/Engine.h"
 #include "CubeHISM.h"
 #include "CubeCraft/Public/MyPerlin.h"
+#include "HAL/RunnableThread.h"
+
 
 
 
@@ -23,6 +25,7 @@ void AWorldChunk::PrepareHISMs()
 		PrepareHISM(meshInstances);
 		meshHISMs.Add(it.name, meshInstances);
 		meshInstances->SetStaticMesh(it.cubeMesh);
+		meshInstances->cubeMaxHealth = it.maxHealth;
 	}
 }
 
@@ -34,6 +37,37 @@ void AWorldChunk::PrepareHISM(UCubeHISM* hism)
 	hism->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
 }
 
+void AWorldChunk::CheckChunkBuilder()
+{
+	checkChunkBuilderTimer.Invalidate();
+	if (chunkBuilder->IsFinished()) {
+		UCubeHISM* dirtInstances = *meshHISMs.Find("dirt");
+		UCubeHISM* stoneInstances = *meshHISMs.Find("stone");
+		UCubeHISM* diamondInstances = *meshHISMs.Find("diamond");
+		UCubeHISM* iceInstances = *meshHISMs.Find("ice");
+
+		for (int i = 0; i < chunkBuilder->transforms.Num(); ++i) {
+			if (chunkBuilder->types[i] == 0) {
+				iceInstances->AddInstance(chunkBuilder->transforms[i]);
+			} 
+			else if (chunkBuilder->types[i] == 1) {
+				stoneInstances->AddInstance(chunkBuilder->transforms[i]);
+			}
+			else if (chunkBuilder->types[i] == 2) {
+				dirtInstances->AddInstance(chunkBuilder->transforms[i]);
+			}
+			else if (chunkBuilder->types[i] == 3) {
+				diamondInstances->AddInstance(chunkBuilder->transforms[i]);
+			}
+		}
+		thread->Kill();
+		thread = NULL;
+		chunkBuilder.Release();
+	}
+	else {
+		GetWorldTimerManager().SetTimer(checkChunkBuilderTimer, this, &AWorldChunk::CheckChunkBuilder, 1, false, FMath::FRand());
+	}
+}
 
 AWorldChunk::AWorldChunk()
 {
@@ -77,7 +111,7 @@ void AWorldChunk::SaveAndDestroy()
 		return;
 
 	//FBox2D(FVector2D(x - halfsize, y - halfsize), FVector2D(x + halfsize, y + halfsize));
-	owningTree->Remove(this, FBox2D(FVector2D(x - 0.1, y - 0.1), FVector2D(x + 0.1, y + 0.1)));
+	manager->quadTree->Remove(this, FBox2D(FVector2D(x - 0.1, y - 0.1), FVector2D(x + 0.1, y + 0.1)));
 	this->Destroy();
 }
 
@@ -88,7 +122,7 @@ void AWorldChunk::AddMeshInstanceToChunk(UStaticMesh& staticMesh, FTransform& tr
 void AWorldChunk::AddCube(FVector& position, FCubeType& type)
 {
 	// Find right hism component for this type
-	UHierarchicalInstancedStaticMeshComponent* meshInstances = *meshHISMs.Find(type.name);
+	UCubeHISM* meshInstances = *meshHISMs.Find(type.name);
 
 	// Transform that will be added to the hism
 	FTransform transform;
@@ -117,52 +151,30 @@ void AWorldChunk::AddCube(FVector& position, FCubeType& type)
 void AWorldChunk::BuildChunk(int x1, int y1, AWorldManager & worldManager)
 {
 
-	owningTree = worldManager.quadTree;
-
 	manager = &worldManager;
+
+	PrepareHISMs();
+
+	SetActorLocation(FVector(x1 * worldManager.cubeSize * worldManager.chunkSize, y1 * worldManager.cubeSize * worldManager.chunkSize, 0));
+
+
+	chunkBuilder = MakeUnique<FChunkBuilder>(x1, y1, worldManager);
+
+
+	thread = FRunnableThread::Create(chunkBuilder.Get(),TEXT("ChunkBuilder"));
+
+	if (thread == NULL) {
+		UE_LOG(LogTemp, Warning, TEXT("Chunkbuilder failed"));
+	}
+	
+	GetWorldTimerManager().SetTimer(checkChunkBuilderTimer, this, &AWorldChunk::CheckChunkBuilder, 1, false, FMath::FRand());
 
 	this->x = x1;
 	this->y = y1;
-	float cubeSize = worldManager.cubeSize;
-	int chunkSize = worldManager.chunkSize;
+}
 
-	SetActorLocation(FVector(x1* cubeSize * chunkSize, y1* cubeSize * chunkSize, 0));
-
-	PrepareHISMs();
-	UHierarchicalInstancedStaticMeshComponent* dirtInstances = *meshHISMs.Find("dirt");
-	UHierarchicalInstancedStaticMeshComponent* stoneInstances = *meshHISMs.Find("stone");
-	UHierarchicalInstancedStaticMeshComponent* diamondInstances = *meshHISMs.Find("diamond");
-	UHierarchicalInstancedStaticMeshComponent* iceInstances = *meshHISMs.Find("ice");
-
-	FTransform transform;
-	transform.SetScale3D(FVector(cubeSize/100));
-	float halfOffset = (cubeSize * chunkSize) * 0.5;
-	for (int i = 0; i < chunkSize; ++i) {
-		for (int k = 0; k < chunkSize; ++k) {
-			float height = MyPerlin::ModifiedPerlin2D
-				(i*cubeSize - halfOffset + GetActorLocation().X,
-					k * cubeSize - halfOffset + GetActorLocation().Y)
-				*(worldManager.heightAmplitude);
-
-			height = FMath::RoundToFloat(height / cubeSize) * cubeSize;
-
-			transform.SetLocation(FVector(i*cubeSize - halfOffset, k * cubeSize - halfOffset , height));
-
-			float type = MyPerlin::ModifiedPerlin3D(i * cubeSize - halfOffset + GetActorLocation().X,
-												k * cubeSize - halfOffset + GetActorLocation().Y,
-													height);
-			if (type > 0.6)
-				continue;
-			if(type > 0.3)
-				iceInstances->AddInstance(transform);
-			else if(type > 0.1)
-				stoneInstances->AddInstance(transform);
-			else if(type > -0.8)
-				dirtInstances->AddInstance(transform);
-			else 
-				diamondInstances->AddInstance(transform);
-		}
-	}
+void AWorldChunk::CubeRemovedAt(FTransform& trans)
+{
 }
 
 // Called when the game starts or when spawned

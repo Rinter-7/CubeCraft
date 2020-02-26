@@ -253,14 +253,14 @@ float MyPerlin::ModifiedPerlin2D(float x, float y)
 float MyPerlin::ModifiedPerlin3D(float x, float y, float z)
 {
 	// Normalize input to be in range -1 - 1
-	x /= 1048576;
-	y /= 1048576;
+	x /= FMathPerlinHelpers::zDivisor;
+	y /= FMathPerlinHelpers::zDivisor;
 	z /= FMathPerlinHelpers::zDivisor;
 
 	float total = 0;
 	float frequency = 1;
-	float amplitude = 1;
-	float maxValue = 0;  // Used for normalizing result to 0.0 - 1.0
+	float amplitude = 10;
+	float maxValue = 0;  // Used for normalizing result 
 	for (int i = 0; i < FMathPerlinHelpers::octaves3D; i++) {
 		total += MyPerlin::PerlinNoise3D(FVector(x * frequency, y * frequency, z * frequency)) * amplitude;
 

@@ -188,5 +188,4 @@ void AWorldManager::BeginPlay()
 
 void AWorldManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	//delete(quadTree);
 }
