@@ -18,24 +18,21 @@
 
 
 
+
 void AWorldChunk::PrepareHISMs()
 {
 	for (auto&& it : manager->types) {
 		UCubeHISM* meshInstances = NewObject< UCubeHISM>(this);
-		PrepareHISM(meshInstances);
+		meshInstances->RegisterComponent();
+		meshInstances->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+		meshInstances->SetCollisionProfileName(TEXT("Pawn"));
+		meshInstances->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
 		meshHISMs.Add(it.name, meshInstances);
 		meshInstances->SetStaticMesh(it.cubeMesh);
 		meshInstances->cubeMaxHealth = it.maxHealth;
 	}
 }
 
-void AWorldChunk::PrepareHISM(UCubeHISM* hism)
-{
-	hism->RegisterComponent();
-	hism->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
-	hism->SetCollisionProfileName(TEXT("Pawn"));
-	hism->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
-}
 
 void AWorldChunk::CheckChunkBuilder()
 {
@@ -60,6 +57,8 @@ void AWorldChunk::CheckChunkBuilder()
 				diamondInstances->AddInstance(chunkBuilder->transforms[i]);
 			}
 		}
+		columnMatrix = chunkBuilder->columnMatrix;
+
 		thread->Kill();
 		thread = NULL;
 		chunkBuilder.Release();
@@ -115,10 +114,6 @@ void AWorldChunk::SaveAndDestroy()
 	this->Destroy();
 }
 
-void AWorldChunk::AddMeshInstanceToChunk(UStaticMesh& staticMesh, FTransform& transform)
-{
-}
-
 void AWorldChunk::AddCube(FVector& position, FCubeType& type)
 {
 	// Find right hism component for this type
@@ -127,19 +122,29 @@ void AWorldChunk::AddCube(FVector& position, FCubeType& type)
 	// Transform that will be added to the hism
 	FTransform transform;
 
-	// Cache cubesize for further use
-	float cubeSize = manager->cubeSize;
-
 	// Set scale of the cube
-	transform.SetScale3D(FVector(cubeSize / 100));
+	transform.SetScale3D(FVector(manager->cubeSize / 99));
 	
 	// Relative position to actor
 	position = position - GetActorLocation();
 
-	// Round the center to the right point
-	position.X = FMath::RoundToFloat(position.X / cubeSize) * cubeSize;
-	position.Y = FMath::RoundToFloat(position.Y / cubeSize) * cubeSize;
-	position.Z = FMath::RoundToFloat(position.Z / cubeSize) * cubeSize;
+	// Set location in the tranform
+	transform.SetLocation(position);
+
+	// Finnaly add transform to the right HISM
+	meshInstances->AddInstance(transform);
+}
+
+void AWorldChunk::AddCubePrecisePosition(FVector const& position, FCubeType& type)
+{
+	// Find right hism component for this type
+	UCubeHISM* meshInstances = *meshHISMs.Find(type.name);
+
+	// Transform that will be added to the hism
+	FTransform transform;
+
+	// Set scale of the cube
+	transform.SetScale3D(FVector(manager->cubeSize / 99));
 
 	// Set location in the tranform
 	transform.SetLocation(position);
@@ -153,15 +158,13 @@ void AWorldChunk::BuildChunk(int x1, int y1, AWorldManager & worldManager)
 
 	manager = &worldManager;
 
-	PrepareHISMs();
-
 	SetActorLocation(FVector(x1 * worldManager.cubeSize * worldManager.chunkSize, y1 * worldManager.cubeSize * worldManager.chunkSize, 0));
 
-
-	chunkBuilder = MakeUnique<FChunkBuilder>(x1, y1, worldManager);
-
+	chunkBuilder = MakeUnique<FChunkBuilder>(x1, y1 ,worldManager);
 
 	thread = FRunnableThread::Create(chunkBuilder.Get(),TEXT("ChunkBuilder"));
+
+	PrepareHISMs();
 
 	if (thread == NULL) {
 		UE_LOG(LogTemp, Warning, TEXT("Chunkbuilder failed"));
@@ -175,7 +178,89 @@ void AWorldChunk::BuildChunk(int x1, int y1, AWorldManager & worldManager)
 
 void AWorldChunk::CubeRemovedAt(FTransform& trans)
 {
+	FVector removedLocation = trans.GetLocation();
+
+	// Calculate this column
+	float cubeSize = manager->cubeSize;
+	float offset = (cubeSize * manager->chunkSize)/2;
+	int X = FMath::RoundToInt((removedLocation.X + offset)/ cubeSize);
+	int Y = FMath::RoundToInt((removedLocation.Y + offset)/ cubeSize);
+
+	// Top cube
+	FVector location = removedLocation;
+	/*location.Z += cubeSize;
+	AddCubeFromColumn(location, X, Y);*/
+
+	// Bottom cube
+	location.Z -= cubeSize;
+	AddCubeFromColumn(location, X, Y);
+
+	/*// Right cube
+	X += 1;
+	// If column is in another chunk
+	if (X >= manager->chunkSize) {
+
+	}
+	location = removedLocation;
+	location.X += cubeSize;
+	AddCubeFromColumn(location, X, Y);
+
+	// Left cube
+	X -= 2;
+	// If column is in another chunk
+	if (X < 0) {
+
+	}
+	location = removedLocation;
+	location.X -= cubeSize;
+	AddCubeFromColumn(location, X, Y);
+	
+	X += 1;
+
+	// Front cube
+	Y += 1;
+	// If column is in another chunk
+	if (Y >= manager->chunkSize) {
+
+	}
+	location = removedLocation;
+	location.Y += cubeSize;
+	AddCubeFromColumn(location, X, Y);
+
+	// Back cube
+	Y -= 2;
+	// If column is in another chunk
+	if (Y < 0) {
+
+	}
+	location = removedLocation;
+	location.Y -= cubeSize;
+	AddCubeFromColumn(location, X, Y);*/
+
+
 }
+
+void AWorldChunk::AddCubeFromColumn(FVector const & location, int xCol, int yCol)
+{
+	FColumnTransform& column = (*columnMatrix.Get())[xCol * manager->chunkSize + yCol];
+
+	if (column.topLocation.Z > location.Z + 0.0001) {
+		int zDelta = FMath::RoundToInt((column.topLocation.Z - location.Z) / manager->cubeSize);
+
+		if (zDelta < 0 || zDelta > column.types.Num() - 1) {
+			return;
+		}
+
+		int & typeIndex = column.types[zDelta];
+
+		UE_LOG(LogTemp, Warning, TEXT("Type is %d "), typeIndex);
+		if (typeIndex >= 0) {
+			AddCubePrecisePosition(location, manager->types[typeIndex]);
+			typeIndex = -1;
+		}
+	}
+}
+
 
 // Called when the game starts or when spawned
 void AWorldChunk::BeginPlay()

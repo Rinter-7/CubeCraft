@@ -54,5 +54,6 @@ void UCubeHISM::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimiti
 
 void UCubeHISM::BeginPlay()
 {
+	Super::BeginPlay();
 	owner = StaticCast<AWorldChunk*>(GetOwner());
 }

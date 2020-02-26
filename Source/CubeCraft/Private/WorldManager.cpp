@@ -121,15 +121,6 @@ void AWorldManager::AddCube(FVector& position, FCubeType& type)
 	if (chunks.Num() > 0) {
 		chunks[0]->AddCube(position, type);
 	}
-	else {
-		FString msg;
-		msg.Append("X: ");
-		msg.AppendInt(x);
-		msg.Append(" Y: ");
-		msg.AppendInt(y);
-		GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Red, msg);
-
-	}
 }
 
 

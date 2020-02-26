@@ -45,22 +45,28 @@ class ACubeCraftCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UMotionControllerComponent* L_MotionController;
 
+	// world pointer, to avoid callin GetWorld repeatedly
 	class UWorld* world;
 
+	// Function that should be called on onbeam input
 	void (ACubeCraftCharacter::*beamFunction)(float);
 
+	// How much time since last shot that placed a cube
 	float timeSinceLastShot = 0;
 
-	bool bReadyToBeam = true;
-
+	// Is in cube destruction mode or in spawning mode?
 	bool bDestructionMode = true;
 
+	// Is the beam currently destroying a cube?
 	bool isDestroying = false;
 
+	// The component currently being damaged
 	class UCubeHISM * damagedComponent = NULL;
 
+	// The index of the damaged cube in the component
 	int32 damagedCube = 0;
 
+	int spawnTypeIndex = 0;
 
 public:
 	ACubeCraftCharacter();
@@ -69,12 +75,15 @@ protected:
 	virtual void BeginPlay();
 
 public:
+	// World manager pointer
 	class AWorldManager* worldManager;
 
 	/** Reload time for cube spawning */
 	UPROPERTY(EditAnywhere, Category = Beam)
 	float reloadTime = 0.1;
 
+	UPROPERTY(EditAnywhere, category = Beam)
+	class UStaticMeshComponent * spawnGuideMesh;
 
 	/** Length of the beam */
 	UPROPERTY(EditAnywhere, Category = Beam)
@@ -123,11 +132,15 @@ protected:
 	/** Creates a spawning beam **/
 	void OnBeamSpawn(float Value);
 
-	/** Creates a spawning beam **/
+	/** Creates a destructing beam **/
 	void OnBeamDestroy(float Value);
 
-	/* Creates a destructing beam*/
+	/* Swaps beam mode*/
 	void OnWeaponModeChange();
+
+	void IncementCubeType();
+
+	void DecrementCubeType();
 
 	/** Resets HMD orientation and position in VR. */
 	void OnResetVR();

@@ -7,10 +7,8 @@
 #include "CubeHISM.h"
 
 
-void FChunkBuilder::BuildColumn(FTransform& trans)
+void FChunkBuilder::BuildColumnVisible(FTransform& trans)
 {
-	
-
 	//Add top transform 
 	AddTransform(trans);
 
@@ -80,6 +78,41 @@ void FChunkBuilder::AddTransform(FTransform const& trans)
 	}
 }
 
+void FChunkBuilder::BuildColumnRest(FTransform& trans, int xLoc, int yLoc)
+{
+	FVector location = trans.GetLocation();
+
+	TArray<int>& typesCol = (*columnMatrix.Get())[yLoc * chunkSize + xLoc].types;
+
+	(*columnMatrix.Get())[yLoc * chunkSize + xLoc].topLocation = location;
+
+	while (location.Z > -1000) {
+		location.Z -= cubeSize;
+
+		float type = MyPerlin::ModifiedPerlin3D(location.X + chunkLocation.X,
+			location.Y + chunkLocation.Y,
+			location.Z);
+
+		//UE_LOG(LogTemp, Warning, TEXT("Type is %f"), type);
+
+		// Place 4 different types into the world
+		if (type > 0.4) {
+			typesCol.Push(0);
+		}
+		else if (type > 0.1) {
+			typesCol.Push(1);
+
+		}
+		else if (type > -0.8) {
+			typesCol.Push(2);
+
+		}
+		else {
+			typesCol.Push(3);
+		}
+	}
+}
+
 bool FChunkBuilder::Init()
 {
 
@@ -107,7 +140,8 @@ uint32 FChunkBuilder::Run()
 
 			transform.SetLocation(FVector(i * cubeSize - halfOffset, k * cubeSize - halfOffset, height));
 
-			BuildColumn(transform);
+			BuildColumnVisible(transform);
+			BuildColumnRest(transform, i, k);
 		}
 	}
 	bIsFinished = true;
@@ -132,6 +166,10 @@ FChunkBuilder::FChunkBuilder(int x1, int y1, AWorldManager & manager)
 
 	cubeSize = manager.cubeSize;
 	chunkSize = manager.chunkSize;
+
+	columnMatrix = MakeShared<TArray<FColumnTransform>>();
+
+	columnMatrix->AddDefaulted(chunkSize * chunkSize);
 
 	heightAmplitude = manager.heightAmplitude;
 

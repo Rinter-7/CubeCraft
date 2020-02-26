@@ -16,6 +16,7 @@
 #include "CubeType.h"
 #include "CubeCraft/Public/WorldManager.h"
 #include "CubeHISM.h"
+#include "Components/StaticMeshComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 
@@ -89,6 +90,9 @@ ACubeCraftCharacter::ACubeCraftCharacter()
 	VR_MuzzleLocation->SetRelativeLocation(FVector(0.000004, 53.999992, 10.000000));
 	VR_MuzzleLocation->SetRelativeRotation(FRotator(0.0f, 90.0f, 0.0f));		// Counteract the rotation of the VR gun model.
 
+	spawnGuideMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SpawnGuideMesh"));
+	spawnGuideMesh->SetHiddenInGame(true);
+
 	// Uncomment the following line to turn motion controllers on by default:
 	//bUsingMotionControllers = true;
 }
@@ -100,6 +104,14 @@ void ACubeCraftCharacter::BeginPlay()
 
 	world = GetWorld();
 
+	// Find world manager
+	TArray<AActor*> managers;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AWorldManager::StaticClass(), managers);
+	worldManager = StaticCast<AWorldManager*>(managers[0]);
+
+	spawnGuideMesh->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
+	spawnGuideMesh->bAbsoluteRotation = true;
+	spawnGuideMesh->SetWorldScale3D(FVector(worldManager->cubeSize/99));
 
 	//Attach gun mesh component to Skeleton, doing it here because the skeleton is not yet created in the constructor
 	FP_Gun->AttachToComponent(Mesh1P, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true), TEXT("GripPoint"));
@@ -152,6 +164,8 @@ void ACubeCraftCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 	beamFunction = &ACubeCraftCharacter::OnBeamDestroy;
 	PlayerInputComponent->BindAxis("Beam", this, &ACubeCraftCharacter::OnBeam);
 	PlayerInputComponent->BindAction("ChangeWeaponMode", IE_Pressed, this, &ACubeCraftCharacter::OnWeaponModeChange);
+	PlayerInputComponent->BindAction("IncrementCubeIndex", IE_Pressed, this, &ACubeCraftCharacter::IncementCubeType);
+	PlayerInputComponent->BindAction("DecrementCubeIndex", IE_Pressed, this, &ACubeCraftCharacter::DecrementCubeType);
 
 }
 
@@ -212,29 +226,35 @@ void ACubeCraftCharacter::OnBeamSpawn(float Value)
 {
 	timeSinceLastShot += world->GetDeltaSeconds();
 
-	if (timeSinceLastShot >= reloadTime) {
-		bReadyToBeam = true;
-	}
-	if (Value > 0.1 && bReadyToBeam) {
-		FVector start = FirstPersonCameraComponent->GetComponentLocation();
-		FVector end = start + FirstPersonCameraComponent->GetForwardVector() * BeamLength;
-		FHitResult hit;
+	FVector start = FirstPersonCameraComponent->GetComponentLocation();
+	FVector end = start + FirstPersonCameraComponent->GetForwardVector() * BeamLength;
+	FHitResult hit;
 
-		if (world->LineTraceSingleByObjectType(hit, start, end, FCollisionObjectQueryParams::AllStaticObjects)) {
-			if (hit.Distance < 200) // If we are too close dont add cube
-				return;
+	if (world->LineTraceSingleByObjectType(hit, start, end, FCollisionObjectQueryParams::AllStaticObjects)) {
+		DrawDebugLine(world, FP_MuzzleLocation->GetComponentLocation(), hit.Location, FColor::Green);
 
-			DrawDebugLine(world, FP_MuzzleLocation->GetComponentLocation(), hit.Location, FColor::Green);
-			FVector location = hit.Location + hit.Normal;
+		// Offset the location a bit so rounding to center of the potential cube will work
+		FVector location = hit.Location + hit.Normal;
 
-			worldManager->AddCube(location, worldManager->types[0]);
+		// Cache cubesize for further use
+		float cubeSize = worldManager->cubeSize;
 
+		// Round the center to the right point
+		location.X = FMath::RoundToFloat(location.X / cubeSize) * cubeSize;
+		location.Y = FMath::RoundToFloat(location.Y / cubeSize) * cubeSize;
+		location.Z = FMath::RoundToFloat(location.Z / cubeSize) * cubeSize;
+
+		spawnGuideMesh->SetHiddenInGame(false);
+		spawnGuideMesh->SetWorldLocation(location);
+
+		if (Value > 0.1 && timeSinceLastShot >= reloadTime && hit.Distance > 200) {
+			worldManager->AddCube(location, worldManager->types[spawnTypeIndex]);
 			timeSinceLastShot = 0;
-			bReadyToBeam = false;
 		}
-		else {
-			DrawDebugLine(world, FP_MuzzleLocation->GetComponentLocation(), end, FColor::Blue);
-		}
+	}
+	else {
+		spawnGuideMesh->SetHiddenInGame(true);
+		DrawDebugLine(world, FP_MuzzleLocation->GetComponentLocation(), end, FColor::Blue);
 	}
 }
 
@@ -285,6 +305,7 @@ void ACubeCraftCharacter::OnWeaponModeChange()
 	bDestructionMode ^= true;
 
 	if (bDestructionMode) {
+		spawnGuideMesh->SetHiddenInGame(true);
 		beamFunction = &ACubeCraftCharacter::OnBeamDestroy;
 	}
 	else {
@@ -293,6 +314,20 @@ void ACubeCraftCharacter::OnWeaponModeChange()
 			damagedComponent = NULL;
 		}
 		beamFunction = &ACubeCraftCharacter::OnBeamSpawn;
+	}
+}
+
+void ACubeCraftCharacter::IncementCubeType()
+{
+	if (++spawnTypeIndex >= worldManager->types.Num()) {
+		spawnTypeIndex = 0;
+	}
+}
+
+void ACubeCraftCharacter::DecrementCubeType()
+{
+	if (--spawnTypeIndex < 0) {
+		spawnTypeIndex = worldManager->types.Num() - 1;
 	}
 }
 
