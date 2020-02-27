@@ -7,6 +7,8 @@
 #include "CubeHISM.h"
 #include "ChunkSaver.h"
 #include "Kismet/GameplayStatics.h"
+#include "UObject/UObjectGlobals.h"
+
 
 
 void FChunkBuilder::BuildColumn(FTransform& trans)
@@ -34,26 +36,36 @@ void FChunkBuilder::AddTransform(FTransform const& trans)
 
 	// Place 4 different types into the world
 	if (type > 0.4) {
-		transforms.Push(trans);
-		typeIndexes.Push(0);
+		cubeComps[0]->AddInstance(trans);
 	}
 	else if (type > 0.1) {
-		transforms.Push(trans);
-		typeIndexes.Push(1);
+		cubeComps[1]->AddInstance(trans);
+
 	}
 	else if (type > -0.8) {
-		transforms.Push(trans);
-		typeIndexes.Push(2);
+		cubeComps[2]->AddInstance(trans);
+
 	}
 	else {
-		transforms.Push(trans);
-		typeIndexes.Push(3);
+		cubeComps[3]->AddInstance(trans);
 	}
+}
+
+void FChunkBuilder::PrepareComponents()
+{
+	for (int i = 0; i < nTypes; ++i) {
+		cubeComps.Push(NewObject<UCubeHISM>(ownA));
+		cubeComps[i]->SetCollisionProfileName(TEXT("Pawn"));
+		//cubeCompsGetData(i).Get()
+		cubeComps[i]->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
+		
+	}
+
 }
 
 bool FChunkBuilder::Init()
 {
-
+	PrepareComponents();
 	return true;
 }
 
@@ -68,9 +80,8 @@ uint32 FChunkBuilder::Run()
 	{
 		for (int i = 0; i < loadedChunk->locations.Num(); ++i) {
 			transform.SetLocation(loadedChunk->locations[i]);
-			transforms.Push(transform);
+			cubeComps[0]->AddInstance(transform);
 		}
-		typeIndexes = loadedChunk->types;
 	}
 	else {
 
@@ -109,7 +120,7 @@ bool FChunkBuilder::IsFinished()
 	return bIsFinished;
 }
 
-FChunkBuilder::FChunkBuilder(int x1, int y1, AWorldManager & manager)
+FChunkBuilder::FChunkBuilder(int x1, int y1, AWorldManager & manager, AWorldChunk * owner)
 {
 	x = x1;
 	y = y1;
@@ -123,5 +134,8 @@ FChunkBuilder::FChunkBuilder(int x1, int y1, AWorldManager & manager)
 
 	floorHeight = manager.floorHeight;
 
+	nTypes = manager.types.Num();
+
+	ownA = owner;
 	chunkLocation = FVector(x * cubeSize * chunkSize, y * cubeSize * chunkSize, 0);
 }

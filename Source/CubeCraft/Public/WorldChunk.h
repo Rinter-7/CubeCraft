@@ -19,8 +19,8 @@ class CUBECRAFT_API AWorldChunk : public AActor
 
 	// This map lets us use hism for every new static mesh we add to the chunk
 	// Hisms are usefull for rendering many instances of the same static mesh
-	TMap<FString,class UCubeHISM* > meshHISMs;
-
+		UPROPERTY()
+	TArray<class UCubeHISM*> meshHISMs;
 	// Prepare default hisms
 	void PrepareHISMs();
 

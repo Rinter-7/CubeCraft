@@ -5,6 +5,7 @@
 #include "HAL/Runnable.h"
 #include "CoreMinimal.h"
 #include "ColumnTransform.h"
+#include "CubeType.h"
 /**
  * 
  */
@@ -18,7 +19,11 @@ class CUBECRAFT_API FChunkBuilder : public FRunnable
 	// Computes 3D perlin for transform and adds it to transforms
 	void AddTransform( FTransform const& trans);
 
+	void PrepareComponents();
+
 	bool bIsFinished = false;
+
+	int nTypes;
 
 	int x;
 	int y;
@@ -32,11 +37,13 @@ class CUBECRAFT_API FChunkBuilder : public FRunnable
 
 	float floorHeight;
 
-public:
-	/** The Data **/
-	TArray<FTransform> transforms;
+	class AWorldChunk* ownA;
 
-	TArray<int> typeIndexes;
+public:
+
+	/** The Data **/
+	UPROPERTY()
+	TArray<class UCubeHISM*> cubeComps;
 
 	// Begin FRunnable interface.
 	virtual bool Init() override;
@@ -46,5 +53,5 @@ public:
 
 	bool IsFinished();
 
-	FChunkBuilder(int x, int y, class AWorldManager & manager);
+	FChunkBuilder(int x, int y, class AWorldManager & manager, class AWorldChunk * owner);
 };

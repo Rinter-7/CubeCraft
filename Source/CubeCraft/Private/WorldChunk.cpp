@@ -18,16 +18,18 @@
 
 void AWorldChunk::PrepareHISMs()
 {
-	for (auto&& it : manager->types) {
-		UCubeHISM* meshInstances = NewObject< UCubeHISM>(this);
-		meshInstances->RegisterComponent();
-		meshInstances->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
-		meshInstances->SetCollisionProfileName(TEXT("Pawn"));
-		meshInstances->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
-		meshHISMs.Add(it.name, meshInstances);
-		meshInstances->SetStaticMesh(it.cubeMesh);
-		meshInstances->Mobility = EComponentMobility::Static;
-		meshInstances->cubeMaxHealth = it.maxHealth;
+	for (int k = 0; k < chunkBuilder->cubeComps.Num(); k++) {
+		meshHISMs.Push(chunkBuilder->cubeComps[k]);
+		chunkBuilder->cubeComps[k] = nullptr;
+	}
+
+	int i = 0;
+	for (auto && it : meshHISMs) {
+		it->RegisterComponentWithWorld(GetWorld());
+		it->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+		it->SetStaticMesh(manager->types[i].cubeMesh);
+		it->cubeMaxHealth = manager->types[i++].maxHealth;
+
 	}
 }
 
@@ -36,7 +38,8 @@ void AWorldChunk::CheckChunkBuilder()
 {
 	checkChunkBuilderTimer.Invalidate();
 	if (chunkBuilder->IsFinished()) {
-		UCubeHISM* dirtInstances = *meshHISMs.Find("dirt");
+		PrepareHISMs();
+		/*UCubeHISM* dirtInstances = *meshHISMs.Find("dirt");
 		UCubeHISM* stoneInstances = *meshHISMs.Find("stone");
 		UCubeHISM* diamondInstances = *meshHISMs.Find("diamond");
 		UCubeHISM* iceInstances = *meshHISMs.Find("ice");
@@ -54,11 +57,11 @@ void AWorldChunk::CheckChunkBuilder()
 			else if (chunkBuilder->typeIndexes[i] == 3) {
 				diamondInstances->AddInstance(chunkBuilder->transforms[i]);
 			}
-		}
+		}*/
 
-		thread->Kill();
+		/*thread->Kill();
 		thread = NULL;
-		chunkBuilder.Release();
+		chunkBuilder.Release();*/
 	}
 	else {
 		GetWorldTimerManager().SetTimer(checkChunkBuilderTimer, this, &AWorldChunk::CheckChunkBuilder, 1, false, FMath::FRand());
@@ -69,6 +72,7 @@ AWorldChunk::AWorldChunk()
 {
 	root = CreateDefaultSubobject<USceneComponent>(TEXT("root"));
 	RootComponent = root;
+	//root->Mobility = EComponentMobility::Static;
 
 	PrimaryActorTick.bCanEverTick = false;
 }
@@ -97,7 +101,7 @@ void AWorldChunk::SaveAndDestroy()
 	saveAndDestroyTimerHandle.Invalidate();
 	if (bIsActive)
 		return;
-
+	/*
 	if (UChunkSaver* saveChunk = Cast<UChunkSaver>(UGameplayStatics::CreateSaveGameObject(UChunkSaver::StaticClass())))
 	{
 		// Set up the (optional) delegate.
@@ -107,13 +111,12 @@ void AWorldChunk::SaveAndDestroy()
 		SavedDelegate.BindUObject(this, &AWorldChunk::SaveConfirm);
 		
 		// Set data on the savegame object.
-		TArray<UCubeHISM*> hisms;
-		meshHISMs.GenerateValueArray(hisms);
-		for (int i = 0; i < hisms.Num(); ++i) {
-			int count = hisms[i]->GetInstanceCount();
+
+		for (int i = 0; i < meshHISMs.Num(); ++i) {
+			int count = meshHISMs[i]->GetInstanceCount();
 			FTransform transform;
 			for (int k = 0; k < count; ++k) {
-				hisms[i]->GetInstanceTransform(k,transform);
+				meshHISMs[i]->GetInstanceTransform(k,transform);
 				saveChunk->locations.Push(transform.GetLocation());
 				saveChunk->types.Push(i);
 			}
@@ -123,7 +126,7 @@ void AWorldChunk::SaveAndDestroy()
 
 		// Start async save process.
 		UGameplayStatics::AsyncSaveGameToSlot(saveChunk, slotname, 0, SavedDelegate);
-	}
+	}*/
 
 	//FBox2D(FVector2D(x - halfsize, y - halfsize), FVector2D(x + halfsize, y + halfsize));
 	manager->quadTree->Remove(this, FBox2D(FVector2D(x - 0.1, y - 0.1), FVector2D(x + 0.1, y + 0.1)));
@@ -144,7 +147,6 @@ void AWorldChunk::SaveConfirm(const FString& SlotName, const int32 UserIndex, bo
 void AWorldChunk::AddCube(FVector& position, FCubeType& type)
 {
 	// Find right hism component for this type
-	UCubeHISM* meshInstances = *meshHISMs.Find(type.name);
 
 	// Transform that will be added to the hism
 	FTransform transform;
@@ -159,7 +161,7 @@ void AWorldChunk::AddCube(FVector& position, FCubeType& type)
 	transform.SetLocation(position);
 
 	// Finnaly add transform to the right HISM
-	meshInstances->AddInstance(transform);
+	meshHISMs[0]->AddInstance(transform);
 }
 
 
@@ -170,11 +172,9 @@ void AWorldChunk::BuildChunk(int x1, int y1, AWorldManager & worldManager)
 
 	SetActorLocation(FVector(x1 * worldManager.cubeSize * worldManager.chunkSize, y1 * worldManager.cubeSize * worldManager.chunkSize, 0));
 
-	chunkBuilder = MakeUnique<FChunkBuilder>(x1, y1 ,worldManager);
+	chunkBuilder = MakeUnique<FChunkBuilder>(x1, y1 ,worldManager,this);
 
 	thread = FRunnableThread::Create(chunkBuilder.Get(),TEXT("ChunkBuilder"));
-
-	PrepareHISMs();
 
 	if (thread == NULL) {
 		UE_LOG(LogTemp, Warning, TEXT("Chunkbuilder failed"));
