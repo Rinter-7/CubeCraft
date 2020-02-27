@@ -63,6 +63,8 @@ public:
 	// Saves this chunk into memory and destroys it
 	void SaveAndDestroy();
 
+	void SaveConfirm(const FString& SlotName, const int32 UserIndex, bool bSuccess);
+
 	// Position of the chunk, in custom coordinate system.
 	int x;
 	int y;

@@ -16,21 +16,28 @@ class CUBECRAFT_API AWorldManager : public AActor
 {
 	GENERATED_BODY()
 
-
-
+	// Center of the world (Player should always be in the center)
 	int centerX;
 	int centerY;
 	
 	float time = 0;
 
+	// Coordinates of removed chunks, used for cleanup
+	TArray<FIntPoint> removedChunks;
+
+	// Add chunk at specified coordinates
 	void AddChunk(int x, int y);
 
+	// Removes chunk at specified coordinates
 	void RemoveChunk(int x, int y);
 
+	// Creates small box aroun given point
 	FBox2D BoxAroundPoint(int x, int y, float size);
 
+	// Player controller, used by check player position
 	class APlayerController * playerController = nullptr;
 
+	// Timer handle for check player position function
 	FTimerHandle checkPlayerPositionTimerHandle;
 
 	// chunk length in ue units, used by CheckplayerPosition function, chunksize * cubesize

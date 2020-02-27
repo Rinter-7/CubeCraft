@@ -13,7 +13,8 @@
 #include "CubeHISM.h"
 #include "CubeCraft/Public/MyPerlin.h"
 #include "HAL/RunnableThread.h"
-
+#include "ChunkSaver.h"
+#include "Kismet/GameplayStatics.h"
 
 void AWorldChunk::PrepareHISMs()
 {
@@ -97,9 +98,47 @@ void AWorldChunk::SaveAndDestroy()
 	if (bIsActive)
 		return;
 
+	if (UChunkSaver* saveChunk = Cast<UChunkSaver>(UGameplayStatics::CreateSaveGameObject(UChunkSaver::StaticClass())))
+	{
+		// Set up the (optional) delegate.
+		FAsyncSaveGameToSlotDelegate SavedDelegate;
+
+		// USomeUObjectClass::SaveGameDelegateFunction is a void function that takes the following parameters: const FString& SlotName, const int32 UserIndex, bool bSuccess
+		SavedDelegate.BindUObject(this, &AWorldChunk::SaveConfirm);
+		
+		// Set data on the savegame object.
+		TArray<UCubeHISM*> hisms;
+		meshHISMs.GenerateValueArray(hisms);
+		for (int i = 0; i < hisms.Num(); ++i) {
+			int count = hisms[i]->GetInstanceCount();
+			FTransform transform;
+			for (int k = 0; k < count; ++k) {
+				hisms[i]->GetInstanceTransform(k,transform);
+				saveChunk->locations.Push(transform.GetLocation());
+				saveChunk->types.Push(i);
+			}
+		}
+
+		FString slotname = FString::Printf(TEXT("ChunkX_%d_Y_%d"), x,y);
+
+		// Start async save process.
+		UGameplayStatics::AsyncSaveGameToSlot(saveChunk, slotname, 0, SavedDelegate);
+	}
+
 	//FBox2D(FVector2D(x - halfsize, y - halfsize), FVector2D(x + halfsize, y + halfsize));
 	manager->quadTree->Remove(this, FBox2D(FVector2D(x - 0.1, y - 0.1), FVector2D(x + 0.1, y + 0.1)));
-	this->Destroy();
+}
+
+void AWorldChunk::SaveConfirm(const FString& SlotName, const int32 UserIndex, bool bSuccess)
+{
+	if (!bSuccess) {
+		UE_LOG(LogTemp, Warning, TEXT("Save failed"));
+		SaveAndDestroy();
+	}
+	else {
+		this->Destroy();
+	}
+
 }
 
 void AWorldChunk::AddCube(FVector& position, FCubeType& type)

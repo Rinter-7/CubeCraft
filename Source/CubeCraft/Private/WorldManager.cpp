@@ -9,6 +9,8 @@
 #include "CubeCraft/Public/WorldChunk.h"
 #include "CubeCraft/CubeCraftCharacter.h"
 #include "CubeCraft/Public/MyPerlin.h"
+#include "Kismet/GameplayStatics.h"
+
 
 void AWorldManager::AddChunk(int x, int y)
 {
@@ -32,6 +34,8 @@ void AWorldManager::RemoveChunk(int x, int y)
 {
 	TArray<AWorldChunk*> chunks;
 	quadTree->GetElements(BoxAroundPoint(x, y,0.2f), chunks);
+
+	removedChunks.Push(FIntPoint(x,y));
 
 	if (chunks.Num() > 0) {
 		chunks[0]->DisableChunk();
@@ -179,4 +183,8 @@ void AWorldManager::BeginPlay()
 
 void AWorldManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	for (auto&& it : removedChunks) {
+		FString name = FString::Printf(TEXT("ChunkX_%d_Y_%d"), it.X, it.Y);
+		UGameplayStatics::DeleteGameInSlot(name, 0);
+	}
 }

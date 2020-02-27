@@ -5,6 +5,8 @@
 #include "WorldManager.h"
 #include "MyPerlin.h"
 #include "CubeHISM.h"
+#include "ChunkSaver.h"
+#include "Kismet/GameplayStatics.h"
 
 
 void FChunkBuilder::BuildColumn(FTransform& trans)
@@ -57,26 +59,39 @@ bool FChunkBuilder::Init()
 
 uint32 FChunkBuilder::Run()
 {
+	FString name = FString::Printf(TEXT("ChunkX_%d_Y_%d"), x, y);
 	FTransform transform;
 	transform.SetScale3D(FVector(cubeSize / 99));
 
+	// Try to load chunk
+	if (UChunkSaver* loadedChunk = Cast<UChunkSaver>(UGameplayStatics::LoadGameFromSlot(name, 0)))
+	{
+		for (int i = 0; i < loadedChunk->locations.Num(); ++i) {
+			transform.SetLocation(loadedChunk->locations[i]);
+			transforms.Push(transform);
+		}
+		typeIndexes = loadedChunk->types;
+	}
+	else {
 
-	for (int i = 0; i < chunkSize; ++i) {
-		for (int k = 0; k < chunkSize; ++k) {
 
-			if (bIsFinished)
-				return -1;
+		for (int i = 0; i < chunkSize; ++i) {
+			for (int k = 0; k < chunkSize; ++k) {
 
-			float height = MyPerlin::ModifiedPerlin2D
-			(i * cubeSize - halfOffset + chunkLocation.X,
-				k * cubeSize - halfOffset + chunkLocation.Y)
-				* (heightAmplitude);
+				if (bIsFinished)
+					return -1;
 
-			height = FMath::RoundToFloat(height / cubeSize) * cubeSize;
+				float height = MyPerlin::ModifiedPerlin2D
+				(i * cubeSize - halfOffset + chunkLocation.X,
+					k * cubeSize - halfOffset + chunkLocation.Y)
+					* (heightAmplitude);
 
-			transform.SetLocation(FVector(i * cubeSize - halfOffset, k * cubeSize - halfOffset, height));
+				height = FMath::RoundToFloat(height / cubeSize) * cubeSize;
 
-			BuildColumn(transform);
+				transform.SetLocation(FVector(i * cubeSize - halfOffset, k * cubeSize - halfOffset, height));
+
+				BuildColumn(transform);
+			}
 		}
 	}
 	bIsFinished = true;
