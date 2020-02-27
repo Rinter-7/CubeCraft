@@ -8,6 +8,7 @@
 
 
 /**
+* DEPRECATED
 * This class generates the world map
 */
 UCLASS()

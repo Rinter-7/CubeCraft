@@ -6,7 +6,7 @@
 #include "ColumnTransform.generated.h"
 
 /**
- * 
+ * Not used in this branch of project
  */
 USTRUCT()
 struct CUBECRAFT_API FColumnTransform

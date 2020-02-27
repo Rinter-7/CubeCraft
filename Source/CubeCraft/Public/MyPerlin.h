@@ -5,18 +5,18 @@
 #include "CoreMinimal.h"
 
 /**
- * 
+ * Custom Perlin class, mostly the same as in the engine but with added functionality
  */
 class CUBECRAFT_API MyPerlin
 {
 public:
 
-	/* set value used by modified perlin function*/
+	/* set values used by modified perlin function*/
 	static void SetOctaves(int oc);
 
 	static void SetPersistance(float per);
 
-	/* set value used by modified 3D perlin function*/
+	/* set values used by modified 3D perlin function*/
 	static void SetOctaves3D(int oc);
 
 	static void SetPersistance3D(float per);
@@ -60,13 +60,13 @@ public:
 
 
 	/**
-	* Modified perling with octaves and stuff
+	* Modified perling with octaves and persistance
 	*/
 	static float ModifiedPerlin2D(float x, float y);
 
 
 	/**
-	* Modified perling with octaves and stuff
+	* Modified perling with octaves and persistance
 	*/
 	static float ModifiedPerlin3D(float x, float y, float z);
 

@@ -7,7 +7,7 @@
 #include "ChunkSaver.generated.h"
 
 /**
- * 
+ * Class that saves chunk information
  */
 UCLASS()
 class CUBECRAFT_API UChunkSaver : public USaveGame

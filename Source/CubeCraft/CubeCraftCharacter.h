@@ -8,6 +8,10 @@
 
 class UInputComponent;
 
+/**
+* Main playable character in our game, it can shoot cubes and spawn new ones
+*/
+
 UCLASS(config=Game)
 class ACubeCraftCharacter : public ACharacter
 {
@@ -66,6 +70,7 @@ class ACubeCraftCharacter : public ACharacter
 	// The index of the damaged cube in the component
 	int32 damagedCube = 0;
 
+	// What type of cube should be spawned
 	int spawnTypeIndex = 0;
 
 public:
@@ -75,17 +80,18 @@ protected:
 	virtual void BeginPlay();
 
 public:
-	// World manager pointer
+	// Manager of this world, we inform him about spawning cubes and saving world
 	class AWorldManager* worldManager;
 
-	/** Reload time for cube spawning */
+	/** Reload time for cube spawning **/
 	UPROPERTY(EditAnywhere, Category = Beam)
 	float reloadTime = 0.1;
 
+	/** Mesh that is used as a spawning guide **/
 	UPROPERTY(EditAnywhere, category = Beam)
 	class UStaticMeshComponent * spawnGuideMesh;
 
-	/** Length of the beam */
+	/** Length of the beam **/
 	UPROPERTY(EditAnywhere, Category = Beam)
 	float BeamLength;
 
@@ -122,11 +128,13 @@ public:
 	uint32 bUsingMotionControllers : 1;
 
 protected:
+	// Saves the world
+	void SaveWorld();
 	
 	/** Fires a projectile. */
 	void OnFire();
 
-	/** Creates a spawning beam **/
+	/** Call the binded beam function **/
 	void OnBeam(float Value);
 
 	/** Creates a spawning beam **/
@@ -138,8 +146,10 @@ protected:
 	/* Swaps beam mode*/
 	void OnWeaponModeChange();
 
-	void IncementCubeType();
+	/* Changes cube being spawned*/
+	void IncrementCubeType();
 
+	/* Changes cube being spawned*/
 	void DecrementCubeType();
 
 	/** Resets HMD orientation and position in VR. */

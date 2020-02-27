@@ -7,11 +7,10 @@
 #include "ColumnTransform.h"
 #include "CubeType.h"
 /**
- * 
+ * This class will build chunk in a separate thread
  */
 class CUBECRAFT_API FChunkBuilder : public FRunnable
 {
-	FVector chunkLocation;
 
 	// Builds a column starting at trans
 	void BuildColumn(FTransform& trans);
@@ -19,10 +18,13 @@ class CUBECRAFT_API FChunkBuilder : public FRunnable
 	// Computes 3D perlin for transform and adds it to transforms
 	void AddTransform( FTransform const& trans);
 
+	// Prepare cubehism components
 	void PrepareComponents();
 
+	// Bool that marks if we are finished
 	bool bIsFinished = false;
-
+	
+	// Data copied from worldManager, they are needed for chunk generation
 	int nTypes;
 
 	int x;
@@ -37,8 +39,11 @@ class CUBECRAFT_API FChunkBuilder : public FRunnable
 
 	float floorHeight;
 
-	class AWorldChunk* ownA;
+	FVector chunkLocation;
 
+	class AWorldChunk* compOwner;
+
+	FString worldName;
 public:
 
 	/** The Data **/
@@ -51,7 +56,9 @@ public:
 	virtual void Stop() override;
 	// End FRunnable interface
 
+	// Function that returns true if the thread has finished
 	bool IsFinished();
 
+	// Constructor
 	FChunkBuilder(int x, int y, class AWorldManager & manager, class AWorldChunk * owner);
 };

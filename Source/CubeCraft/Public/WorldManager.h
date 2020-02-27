@@ -10,17 +10,21 @@
 #include "WorldManager.generated.h"
 
 
-
+/**
+* World Managers job is to build the world around player using world chunks, it can also save the world to disk
+*/
 UCLASS()
 class CUBECRAFT_API AWorldManager : public AActor
 {
 	GENERATED_BODY()
 
 	// Center of the world (Player should always be in the center)
-	int centerX;
-	int centerY;
+	int centerX = 0;
+	int centerY = 0;
 	
-	float time = 0;
+	// Correct player position when loading
+	FVector playerPosition;
+	void ResetPlayerPosition();
 
 	// Coordinates of removed chunks, used for cleanup
 	TArray<FIntPoint> removedChunks;
@@ -43,9 +47,16 @@ class CUBECRAFT_API AWorldManager : public AActor
 	// chunk length in ue units, used by CheckplayerPosition function, chunksize * cubesize
 	float chunkLength;
 
+	// If there isnt performed a safe the saved chunks should be destroyd
+	bool ShouldDestroy = true;
+
 public:	
 	//Quad tree for efficient manipulation with world chunks
 	TSharedPtr<TQuadTree<AWorldChunk*>> quadTree;
+
+	void SaveWorld();
+
+	void LoadWorld();
 
 	// Sets default values for this actor's properties
 	AWorldManager();
@@ -57,7 +68,7 @@ public:
 	void CheckPlayerPosition();
 
 	// Adds a cube into the world, to the apropriete chunk
-	void AddCube(FVector & position, FCubeType& type);
+	void AddCube(FVector & position, int typeIndex);
 
 	UPROPERTY(EditAnywhere)
 	TArray<FCubeType> types;
@@ -78,7 +89,7 @@ public:
 	UPROPERTY(EditAnywhere)
 		int32 seed;
 
-	// Height of the floor
+	// No cubes will be generated under this height
 	UPROPERTY(EditAnywhere)
 		float floorHeight = -1000;
 
@@ -87,7 +98,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Perlin2D)
 		float persistance = 2;
 
-	// Height multiplier for perlin noise
+	// Height multiplier for perlin noise, perlin noise is between 1 and -1
 	UPROPERTY(EditAnywhere, Category = Perlin2D)
 		float heightAmplitude = 800;
 
@@ -99,7 +110,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Perlin3D)
 		float persistance3D = 2;
 
-	// Number of octaves for 2D perlin noise
+	// Number of octaves for 3D perlin noise
 	UPROPERTY(EditAnywhere, Category = Perlin3D)
 		int octaves3D = 2;
 
@@ -107,8 +118,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = Perlin3D)
 		int zDivisor = 800;
 
+	// The world name used for saving and and loading,
+	// if there is saved world with this name it will be loaded
+	// After you leave world you need to press P for saving if you want that world to be loaded
+	UPROPERTY(EditAnywhere, Category = SaveAndLoad)
+		FString worldName = "Default";
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	// Called before this object ceases to exit
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 };

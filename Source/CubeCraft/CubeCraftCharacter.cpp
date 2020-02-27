@@ -164,9 +164,15 @@ void ACubeCraftCharacter::SetupPlayerInputComponent(class UInputComponent* Playe
 	beamFunction = &ACubeCraftCharacter::OnBeamDestroy;
 	PlayerInputComponent->BindAxis("Beam", this, &ACubeCraftCharacter::OnBeam);
 	PlayerInputComponent->BindAction("ChangeWeaponMode", IE_Pressed, this, &ACubeCraftCharacter::OnWeaponModeChange);
-	PlayerInputComponent->BindAction("IncrementCubeIndex", IE_Pressed, this, &ACubeCraftCharacter::IncementCubeType);
+	PlayerInputComponent->BindAction("IncrementCubeIndex", IE_Pressed, this, &ACubeCraftCharacter::IncrementCubeType);
 	PlayerInputComponent->BindAction("DecrementCubeIndex", IE_Pressed, this, &ACubeCraftCharacter::DecrementCubeType);
 
+	PlayerInputComponent->BindAction("Save", IE_Pressed, this, &ACubeCraftCharacter::SaveWorld);
+}
+
+void ACubeCraftCharacter::SaveWorld()
+{
+	worldManager->SaveWorld();
 }
 
 void ACubeCraftCharacter::OnFire()
@@ -248,7 +254,7 @@ void ACubeCraftCharacter::OnBeamSpawn(float Value)
 		spawnGuideMesh->SetWorldLocation(location);
 
 		if (Value > 0.1 && timeSinceLastShot >= reloadTime && hit.Distance > 200) {
-			worldManager->AddCube(location, worldManager->types[spawnTypeIndex]);
+			worldManager->AddCube(location, spawnTypeIndex);
 			timeSinceLastShot = 0;
 		}
 	}
@@ -317,7 +323,7 @@ void ACubeCraftCharacter::OnWeaponModeChange()
 	}
 }
 
-void ACubeCraftCharacter::IncementCubeType()
+void ACubeCraftCharacter::IncrementCubeType()
 {
 	if (++spawnTypeIndex >= worldManager->types.Num()) {
 		spawnTypeIndex = 0;

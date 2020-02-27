@@ -54,13 +54,10 @@ void FChunkBuilder::AddTransform(FTransform const& trans)
 void FChunkBuilder::PrepareComponents()
 {
 	for (int i = 0; i < nTypes; ++i) {
-		cubeComps.Push(NewObject<UCubeHISM>(ownA));
+		cubeComps.Push(NewObject<UCubeHISM>(compOwner));
 		cubeComps[i]->SetCollisionProfileName(TEXT("Pawn"));
-		//cubeCompsGetData(i).Get()
 		cubeComps[i]->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
-		
 	}
-
 }
 
 bool FChunkBuilder::Init()
@@ -71,21 +68,22 @@ bool FChunkBuilder::Init()
 
 uint32 FChunkBuilder::Run()
 {
-	FString name = FString::Printf(TEXT("ChunkX_%d_Y_%d"), x, y);
+	FString name = worldName + FString::Printf(TEXT("\\ChunkX_%d_Y_%d"), x, y);
 	FTransform transform;
-	transform.SetScale3D(FVector(cubeSize / 99));
+	transform.SetScale3D(FVector(cubeSize / 99.9));
 
 	// Try to load chunk
 	if (UChunkSaver* loadedChunk = Cast<UChunkSaver>(UGameplayStatics::LoadGameFromSlot(name, 0)))
 	{
+		// Delete it after loading
+		UGameplayStatics::DeleteGameInSlot(name, 0);
 		for (int i = 0; i < loadedChunk->locations.Num(); ++i) {
 			transform.SetLocation(loadedChunk->locations[i]);
-			cubeComps[0]->AddInstance(transform);
+			cubeComps[loadedChunk->types[i]]->AddInstance(transform);
 		}
-	}
-	else {
-
-
+	} 
+	else // If chunk wasnt loaded, calculate it
+	{
 		for (int i = 0; i < chunkSize; ++i) {
 			for (int k = 0; k < chunkSize; ++k) {
 
@@ -104,7 +102,9 @@ uint32 FChunkBuilder::Run()
 				BuildColumn(transform);
 			}
 		}
-	}
+	} 
+
+	// Mark this thread as finished
 	bIsFinished = true;
 	
 	return 0;
@@ -136,6 +136,7 @@ FChunkBuilder::FChunkBuilder(int x1, int y1, AWorldManager & manager, AWorldChun
 
 	nTypes = manager.types.Num();
 
-	ownA = owner;
+	worldName = manager.worldName;
+	compOwner = owner;
 	chunkLocation = FVector(x * cubeSize * chunkSize, y * cubeSize * chunkSize, 0);
 }

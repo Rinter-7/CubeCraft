@@ -10,7 +10,13 @@
 #include "CubeCraft/CubeCraftCharacter.h"
 #include "CubeCraft/Public/MyPerlin.h"
 #include "Kismet/GameplayStatics.h"
+#include "WorldSaver.h"
 
+
+void AWorldManager::ResetPlayerPosition()
+{
+	GetWorld()->GetFirstPlayerController()->GetPawn()->SetActorLocation(playerPosition);
+}
 
 void AWorldManager::AddChunk(int x, int y)
 {
@@ -50,6 +56,40 @@ FBox2D AWorldManager::BoxAroundPoint(int x, int y, float size)
 }
 
 
+void AWorldManager::SaveWorld()
+{
+	ShouldDestroy = false;
+	TArray<AWorldChunk*> chunks;
+	quadTree->GetElements(quadTree->GetTreeBox(), chunks);
+	for (auto&& it : chunks) {
+		it->SaveChunk();
+	}
+
+	if (UWorldSaver* savedWorld = Cast<UWorldSaver>(UGameplayStatics::CreateSaveGameObject(UWorldSaver::StaticClass())))
+	{
+		savedWorld->seed = seed;
+		savedWorld->centerX = centerX;
+		savedWorld->centerY = centerY;
+		savedWorld->playerLocation = playerController->GetFocalLocation();
+
+		UGameplayStatics::SaveGameToSlot(savedWorld,worldName + "\\world", 0);
+	}
+}
+
+void AWorldManager::LoadWorld()
+{
+	if (UWorldSaver* savedWorld = Cast<UWorldSaver>(UGameplayStatics::LoadGameFromSlot(worldName + "\\world", 0)))
+	{
+		seed = savedWorld->seed;
+		centerX = savedWorld->centerX;
+		centerY = savedWorld->centerY;
+		playerPosition = savedWorld->playerLocation;
+		GetWorld()->GetFirstPlayerController()->GetPawn()->SetActorLocation(playerPosition);
+		FTimerHandle tmp;
+		GetWorld()->GetTimerManager().SetTimer(tmp, this, &AWorldManager::ResetPlayerPosition, 5, false);
+	}
+}
+
 // Sets default values
 AWorldManager::AWorldManager()
 {
@@ -61,12 +101,11 @@ AWorldManager::AWorldManager()
 
 	// Init quad tree
 	quadTree = MakeShared< TQuadTree<AWorldChunk*>>(BoxAroundPoint(0, 0, 10000), 0.5f);
-
-	// ConstructorHelpers::FObjectFinder<UStaticMesh>(TEXT("StaticMesh'/Game/Geometry/Meshes/Cube.Cube'")).Object;
 }
 
 void AWorldManager::RecenterWorld(int newCenterX, int newCenterY)
 {
+	// Center is the same
 	if (centerX == newCenterX && centerY == newCenterY) {
 		return;
 	}
@@ -112,10 +151,9 @@ void AWorldManager::CheckPlayerPosition()
 	}
 }
 
-void AWorldManager::AddCube(FVector& position, FCubeType& type)
+void AWorldManager::AddCube(FVector& position, int typeIndex)
 {
 	// Get chunk coordinates
-
 	int x = FMath::RoundToInt(position.X / chunkLength);
 	int y = FMath::RoundToInt(position.Y / chunkLength);
 	
@@ -123,7 +161,7 @@ void AWorldManager::AddCube(FVector& position, FCubeType& type)
 	quadTree->GetElements(BoxAroundPoint(x, y, 0.2f), chunks);
 
 	if (chunks.Num() > 0) {
-		chunks[0]->AddCube(position, type);
+		chunks[0]->AddCube(position, typeIndex);
 	}
 }
 
@@ -133,6 +171,8 @@ void AWorldManager::AddCube(FVector& position, FCubeType& type)
 void AWorldManager::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	LoadWorld();
 
 	// Empty the tree if we are in the editor
 	quadTree->Empty();
@@ -159,23 +199,12 @@ void AWorldManager::BeginPlay()
 	// Get player conteller
 	playerController = GetWorld()->GetFirstPlayerController();
 
-	if (playerController) {
-		APawn * pawn = playerController->GetPawn();
-		if (pawn) {
-			StaticCast<ACubeCraftCharacter*>(pawn)->worldManager = this;
-		}
-	}
-
 	// Start timer function that checks player position
 	GetWorldTimerManager().SetTimer(checkPlayerPositionTimerHandle, this, &AWorldManager::CheckPlayerPosition, 1.0f, true, 1.f);
 
-	// Set world center
-	centerX = 0;
-	centerY = 0;
-
 	// Build starting chunks of the world
-	for (int x = -nVisibleChunks + 1; x < nVisibleChunks; ++x) {
-		for (int y = -nVisibleChunks + 1; y < nVisibleChunks; ++y) {
+	for (int x = -nVisibleChunks + 1 + centerX; x < nVisibleChunks + centerX; ++x) {
+		for (int y = -nVisibleChunks + 1 + centerY; y < nVisibleChunks + centerY; ++y) {
 			AddChunk(x, y);
 		}
 	}
@@ -183,8 +212,11 @@ void AWorldManager::BeginPlay()
 
 void AWorldManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	for (auto&& it : removedChunks) {
-		FString name = FString::Printf(TEXT("ChunkX_%d_Y_%d"), it.X, it.Y);
-		UGameplayStatics::DeleteGameInSlot(name, 0);
+	if (ShouldDestroy)
+	{
+		for (auto&& it : removedChunks) {
+			FString name = worldName + FString::Printf(TEXT("\\ChunkX_%d_Y_%d"), it.X, it.Y);
+			UGameplayStatics::DeleteGameInSlot(name, 0);
+		}
 	}
 }
