@@ -33,7 +33,7 @@ The higher a block is the more red it is!, even those you placed yourself.(Prepa
 Caves!! There will be caves at some point.. I promise.  
 Performace gain!!! Experiencing lags? Fear not! I am already working on a better solution, there is already a branch dedicated to it.  
 BEAMS! Tired of those boring debug lines? Me too! Soon there will be a proper destructive beam of death.  
-Clouds, the sky is so boring that I need to get moving clouds outthere.  
+Clouds, the sky is so plain that I need to get moving clouds out there.  
 
 
 
