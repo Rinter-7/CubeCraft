@@ -2,6 +2,8 @@
 
 Developed with Unreal Engine 4, voxel, minecraft-like game.  
 
+![simple](Screenshots/simple.png)
+
 ## Getting Started
   
 This game is proceduraly generated. You can run around, spawn and destroy cubes and even save the game!.  
@@ -28,13 +30,16 @@ In case you forget that you will loose parts of the world forever ... :(
   
 ## Cool features
 The higher a block is the more red it is!, even those you placed yourself.(Prepared to build scarlet towers everywhere?)
+  
+![tower](Screenshots/tower.png)
 
 ## Upcoming features
 Caves!! There will be caves at some point.. I promise.  
 Performace gain!!! Experiencing lags? Fear not! I am already working on a better solution, there is already a branch dedicated to it.  
 BEAMS! Tired of those boring debug lines? Me too! Soon there will be a proper destructive beam of death.  
 Clouds, the sky is so plain that I need to get moving clouds out there.  
-
+  
+![cave](Screenshots/cave.png)
 
 
 
