@@ -2,7 +2,8 @@
 
 Developed with Unreal Engine 4, voxel, minecraft-like game.  
 
-![simple](Screenshots/simple.png =250x250)
+<img src="Screenshots/simple.png" width="320" height="320">
+
 
 ## Getting Started
   
