@@ -2,7 +2,7 @@
 
 Developed with Unreal Engine 4, voxel, minecraft-like game.  
 
-<img src="Screenshots/simple.png" width="320" height="320">
+<img src="Screenshots/simple.png" width="400">
 
 
 ## Getting Started
