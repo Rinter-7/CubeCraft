@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
 /**
  * Custom Perlin class, mostly the same as in the engine but with added functionality
  */
@@ -70,5 +69,5 @@ public:
 	*/
 	static float ModifiedPerlin3D(float x, float y, float z);
 
-
+	static float SimplexNoise3D(float x, float y, float z);
 };

@@ -2,6 +2,7 @@
 
 
 #include "MyPerlin.h"
+#include <CubeCraft/Public/OpenSimplexNoise.h>
 
 namespace FMathPerlinHelpers
 {
@@ -271,5 +272,11 @@ float MyPerlin::ModifiedPerlin3D(float x, float y, float z)
 	}
 
 	return total / maxValue;
+}
+
+float MyPerlin::SimplexNoise3D(float x, float y, float z)
+{
+	Noise<3> noise;
+	return noise.eval(x,y,z);
 }
 
